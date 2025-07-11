@@ -21,7 +21,6 @@ Este proyecto trata sobre xsell de productos en spark.
 │         └── graphs.py                           
 │         └── load_data.py
 │         └── logger.py                           
-│         └── utils.py
 │
 │
 ├── data                                    # se encuentran disponibles ficheros csv como input del proyecto 

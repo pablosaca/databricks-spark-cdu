@@ -1,4 +1,4 @@
-from typing import Optional, Union, Tuple, Dict
+from typing import Optional, Union, Tuple, List, Dict
 
 from pyspark.sql import DataFrame as DF
 from pyspark.sql import functions as F
@@ -13,6 +13,7 @@ class Preprocessing:
     Clase utilizada para imputar variables numéricas o categóricas.
     Utiliza una imputación simple (por mediana, media, de forma estratificada,
     categoría más relevante o agrupación de categorías)
+    # TODO: REFACTORIZA LO QUE CONSIDERES DE LA CLASE Y SUS MÉTODOS
     """
 
     @staticmethod
@@ -27,7 +28,7 @@ class Preprocessing:
             if method_name == "mean":
                 value = df.agg(F.avg(col_name).alias(f"{method_name}_{col_name}")).first()[f"{method_name}_{col_name}"]
             elif method_name == "median":
-                value = df.approxQuantile("prima", [0.5], 0.01)[0]
+                value = df.approxQuantile(col_name, [0.5], 0.01)[0]
             else:
                 msg = (
                     f"No disponible el método {method_name} para la imputación de variables numéricas: {col_name}"
@@ -59,7 +60,9 @@ class Preprocessing:
             )
             logger.info(msg)
             df = df.join(value, on=stratific_col, how="left")
-            value_dict = {row[stratific_col]: row[f"{method_name}_{col_name}"] for row in value.collect()}
+            value_dict = {
+                col_name: {row[stratific_col]: row[f"{method_name}_{col_name}"] for row in value.collect()}
+            }
         return df, value_dict
 
     @staticmethod
@@ -69,11 +72,13 @@ class Preprocessing:
 
         Si fuese necesario utilizar este método, usa métodos internos definir la función
         """
+        # TODO: SI FUESE NECESARIO IMPLEMENTAR CÓDIGO FUENTE PARA CREAR NUEVA VARIABLE
         pass
 
     @staticmethod
-    def create_new_col(df: DF, colname: str) -> DF:
+    def create_new_col(df: DF, colname: Union[str, List[str]]) -> DF:
         """
         Utiliza este método si necesitas crear nuevas variables
         """
+        # TODO: SI FUESE NECESARIO IMPLEMENTAR CÓDIGO FUENTE PARA CREAR NUEVA VARIABLE
         pass
