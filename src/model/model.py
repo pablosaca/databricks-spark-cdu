@@ -18,7 +18,7 @@ from src.utils.logger import get_logger
 logger = get_logger()
 
 
-class ClassificationModel(ABC):
+class ClassificationTrainer(ABC):
     # TODO: REFACTORIZA LO QUE CONSIDERES DE LA CLASE Y SUS MÉTODOS
     def __init__(
             self,
@@ -102,7 +102,7 @@ class ClassificationModel(ABC):
         pass
 
 
-class ScikitLearnModel(ClassificationModel):
+class ScikitLearnTrainer(ClassificationTrainer):
     # TODO: uso de un modelo de boosting -> LigthGBM pero puedes plantearte otro modelo
     def __init__(
             self,
@@ -202,7 +202,7 @@ class ScikitLearnModel(ClassificationModel):
         return df
 
 
-class PySparkModel(ClassificationModel):
+class PySparkTrainer(ClassificationTrainer):
 
     def __init__(
             self,
