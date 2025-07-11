@@ -18,17 +18,6 @@ class Preprocessing:
     @staticmethod
     def impute_nulls_for_numeric_cols(
             df: DF, method_name: str, col_name: str, stratific_col: Optional[str] = None
-    ) -> DF:
-        """
-        Imputación de datos faltantes para una columna específica.
-
-        Si fuese necesario utilizar este método, usa métodos internos definir la función
-        """
-        pass
-
-    @staticmethod
-    def impute_stats_numeric_cols(
-            df: DF, method_name: str, col_name: str, stratific_col: Optional[str] = None
     ) -> Tuple[DF, Dict[str, int]]:
         """
 
