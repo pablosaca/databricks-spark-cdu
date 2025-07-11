@@ -13,7 +13,7 @@ class Preprocessing:
     Clase utilizada para imputar variables numéricas o categóricas.
     Utiliza una imputación simple (por mediana, media, de forma estratificada,
     categoría más relevante o agrupación de categorías)
-    # TODO: REFACTORIZA LO QUE CONSIDERES DE LA CLASE Y SUS MÉTODOS
+    # TODO: REFACTORIZA LO QUE CONSIDERES DE LA CLASE Y SUS CORRESPONDIENTES MÉTODOS
     """
 
     @staticmethod
@@ -33,7 +33,7 @@ class Preprocessing:
                 msg = (
                     f"No disponible el método {method_name} para la imputación de variables numéricas: {col_name}"
                 )
-                logger.info(msg)
+                logger.error(msg)
                 raise ValueError(msg)
             msg = (
                 f"Calculo {method_name} para imputación de variables numéricas. "
@@ -52,7 +52,7 @@ class Preprocessing:
                 msg = (
                     f"No disponible el método {method_name} para la imputación de variables numéricas: {col_name}"
                 )
-                logger.info(msg)
+                logger.error(msg)
                 raise ValueError(msg)
             msg = (
                 f"Calculo {method_name} para imputación de variables numéricas. "
@@ -72,11 +72,15 @@ class Preprocessing:
 
         Si fuese necesario utilizar este método, usa métodos internos definir la función
         """
-        # TODO: SI FUESE NECESARIO IMPLEMENTAR CÓDIGO FUENTE PARA CREAR NUEVA VARIABLE
+        # TODO: SI FUESE NECESARIO IMPLEMENTAR CÓDIGO FUENTE PARA IMPUTAR VARIABLES CATEGÓRICAS
         pass
 
     @staticmethod
-    def create_new_col(df: DF, colname: Union[str, List[str]]) -> DF:
+    def create_new_col(
+            df: DF,
+            colname: Union[str, List[str]],
+            group_levels: Optional[List[str, float]] = None
+    ) -> DF:
         """
         Utiliza este método si necesitas crear nuevas variables
         """

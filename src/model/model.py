@@ -24,7 +24,7 @@ class ClassificationModel(ABC):
             self,
             df: DF,
             model_framework: str = "pyspark",
-            target: str = "target",
+            target: str = "Response",
             frac_sample: float = 0.7,
             seed: int = 123
     ):
@@ -33,12 +33,12 @@ class ClassificationModel(ABC):
         api_fremework_available_list = ["scikit-learn", "pyspark"]
         if self.model_framework not in api_fremework_available_list:
             msg = f"Incorrecto framework utilizado: {api_fremework_available_list}"
-            logger.info(msg)
+            logger.error(msg)
             raise ValueError(msg)
 
         if not isinstance(df, DF):
             msg = f"Incorrecto tipado del dataset de entrada. Debe ser un dataframe de spark"
-            logger.info(msg)
+            logger.error(msg)
             raise TypeError(msg)
 
         self.target = target
@@ -66,9 +66,9 @@ class ClassificationModel(ABC):
             y_pred = y_pred.copy()
 
         elif type(y_true) != type(y_pred):
-            raise TypeError(
-                "y_true y y_pred deben ser del mismo tipo: ambos Spark dataFrame o ambos Pandas dataframe"
-            )
+            msg = "y_true y y_pred deben ser del mismo tipo: ambos Spark dataFrame o ambos Pandas dataframe"
+            logger.error(msg)
+            raise TypeError(msg)
 
         metrics = {
             "accuracy": accuracy_score(y_true, y_pred),
@@ -83,8 +83,13 @@ class ClassificationModel(ABC):
         """
         Obtiene la muestra de entrenamiento y de validación
         """
+        if "id" not in df.columns:
+            msg = "`id` ha sido eliminado del dataset. La columna de identificación debe mantenerse"
+            logger.error(msg)
+            raise ValueError(msg)
         # TODO: En este caso, utilizamos un muestro aleatorio simple pero puedes plantear posibles mejoras
-        train_df, val_df = df.sample(fraction=self.frac_sample, seed=self.seed)
+        train_df = df.sample(fraction=self.frac_sample, seed=self.seed)
+        val_df = df.join(train_df, on="id", how="left_anti")
         return train_df, val_df
 
     @abstractmethod
@@ -103,7 +108,7 @@ class ScikitLearnModel(ClassificationModel):
             self,
             df: DF,
             model_framework: str = "scikit-learn",
-            target: str = "target",
+            target: str = "Response",
             frac_sample: float = 0.7,
             categorical_features: Optional[List[str]] = None,
             lightgbm_params: Optional[Dict[str, int]] = None,
@@ -133,7 +138,7 @@ class ScikitLearnModel(ClassificationModel):
         """
         if not isinstance(train_df, DF) or not isinstance(val_df, DF):
             msg = f"Incorrecto tipado del dataset de entrada. Debe ser un dataframe de spark"
-            logger.info(msg)
+            logger.error(msg)
             raise TypeError(msg)
 
         logger.info("Conversión de los Spark dataframes a Pandas dataframes")
@@ -203,7 +208,7 @@ class PySparkModel(ClassificationModel):
             self,
             df: DF,
             model_framework: str = "pyspark",
-            target: str = "target",
+            target: str = "Response",
             frac_sample: float = 0.7,
             categorical_features: Optional[List[str]] = None,
             seed: int = 123
