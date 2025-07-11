@@ -28,14 +28,14 @@ class Preprocessing:
 
     @staticmethod
     def impute_stats_numeric_cols(
-            df: DF, method_name: str, col_name: str, stratific_col: Optional[str]
-    ) -> Tuple[DF, Union[int, DF]]:
+            df: DF, method_name: str, col_name: str, stratific_col: Optional[str] = None
+    ) -> Tuple[DF, Dict[str, int]]:
         """
 
         """
         if stratific_col is None:
             if method_name == "mean":
-                value = df.agg(F.avg(col_name).alias(col_name)).first()[f"{method_name}_{col_name}"]
+                value = df.agg(F.avg(col_name).alias(f"{method_name}_{col_name}")).first()[f"{method_name}_{col_name}"]
             elif method_name == "median":
                 value = df.approxQuantile("prima", [0.5], 0.01)[0]
             else:
@@ -49,12 +49,14 @@ class Preprocessing:
                 f"Los valores nulos de {col_name} se imputarán a {value}"
             )
             logger.info(msg)
+            df = df.fillna({col_name: value})
+            value_dict = {col_name: value}
         elif stratific_col in df.columns:
             if method_name == "mean":
-                value = df.groupBy(stratific_col).agg(F.avg(col_name).alias(f"{method_name}_{col_name}"))
+                value = df.groupBy(stratific_col).agg(F.round(F.avg(col_name)).alias(f"{method_name}_{col_name}"))
             elif method_name == "median":
                 expr = f"percentile_approx({col_name}, 0.5)"
-                value = df.groupBy("tipo_seguro").agg(F.expr(expr).alias(f"{method_name}_{col_name}"))
+                value = df.groupBy(stratific_col).agg(F.expr(expr).alias(f"{method_name}_{col_name}"))
             else:
                 msg = (
                     f"No disponible el método {method_name} para la imputación de variables numéricas: {col_name}"
@@ -67,7 +69,8 @@ class Preprocessing:
             )
             logger.info(msg)
             df = df.join(value, on=stratific_col, how="left")
-        return df, value
+            value_dict = {row[stratific_col]: row[f"{method_name}_{col_name}"] for row in value.collect()}
+        return df, value_dict
 
     @staticmethod
     def impute_nulls_for_categorical_cols(df: DF, colname: str, stratific_col: Optional[str] = None) -> DF:
