@@ -16,14 +16,15 @@ class BasicData:
     def __init__(
             self,
             spark_session: SparkSession,
-            consumption_tab_name: str,
-            meteo_tab_name: str,
-            holiday_city_tab: str,
-            inhabitants_tab: str
+            train_name: str,
+            test_name: str,
+            target_name: str
     ):
 
         self.spark_session = spark_session
-        self.consumption = consumption_tab_name
+        self.train_name = train_name
+        self.test_name = test_name
+        self.target_name = target_name
 
     def get_basic_data(self) -> Union[DF, Tuple[DF, DF]]:
         """
@@ -35,8 +36,8 @@ class BasicData:
         logger.info(
             "Obtención del macrotablón base. Incluye features y target"
         )
-        df = self.__load_data()
-        # pass
+        df = self.__load_data(self.train_name)
+        return df
 
     def __load_data(self, table_name: str) -> DF:
         """
