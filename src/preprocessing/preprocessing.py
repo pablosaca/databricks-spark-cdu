@@ -20,7 +20,8 @@ class Preprocessing:
             df: DF, method_name: str, col_name: str, stratific_col: Optional[str] = None
     ) -> Tuple[DF, Dict[str, int]]:
         """
-
+        Método para imputar valores nulos en el dataset.
+        Devuelve la tabla y un diccionario (clave: nombre de la variable y valor: valor por el que se imputa)
         """
         if stratific_col is None:
             if method_name == "mean":
