@@ -52,7 +52,13 @@ def impute_nulls_for_numeric_cols(
             f"Los valores nulos de {col_name} se imputarán como {value.show()}"
         )
         logger.info(msg)
-        df = df.join(value, on=stratific_col, how="left")
+        df = (
+                 df.join(value, on=stratific_col, how="left")
+                 .withColumn(
+                     col_name,
+                     F.coalesce(F.col(col_name), F.col(f"{method_name}_{col_name}"))
+                 ).drop(f"{method_name}_{col_name}")
+        )
         value_dict = {
             col_name: {row[stratific_col]: row[f"{method_name}_{col_name}"] for row in value.collect()}
         }
@@ -72,24 +78,29 @@ def impute_nulls_for_categorical_cols(df: DF, colname: str, stratific_col: Optio
 def impute_nulls_out_sample(
         df: DF,
         col_name: str,
-        impute_dict: Dict[str, Union[int, float, Dict[str, Union[int, float]]]]
+        impute_value_or_mapping: [Union[float, int, Dict[str, Union[float, int]]]],
+        stratific_col: Optional[str] = None
 ):
     """
     Imputación de valores para las predicciones futuras
     """
-    first_value = list(impute_dict.values())[0]
-    if isinstance(first_value, (float, int)):
+    if isinstance(impute_value_or_mapping, (float, int)):
         df = df.withColumn(
             col_name,
-            F.when(F.col(col_name).isNull(), impute_dict[col_name]).otherwise(F.col(col_name))
+            F.when(F.col(col_name).isNull(), impute_value_or_mapping).otherwise(F.col(col_name))
         )
-    else:  # asumimos que es un diccionario anidado con valores float o enteros
-        for cond_col, mapping in impute_dict.items():
-            # Partimos de la columna original
+        # asumimos que es un diccionario anidado con valores float o enteros
+    elif isinstance(impute_value_or_mapping, dict):
+        if stratific_col is None:
+            msg = "Se debe proporcionar `stratific_col` para imputación condicional"
+            logger.error(msg)
+            raise ValueError(msg)
+        for cond_col, mapping in impute_value_or_mapping.items():
+            # partimos de la columna original
             expr = F.col(col_name)
             for cond_val, impute_val in mapping.items():
                 expr = F.when(
-                    (F.col(cond_col) == cond_val) & (F.col(col_name).isNull()),
+                    (F.col(stratific_col) == cond_val) & (F.col(col_name).isNull()),
                     impute_val
                 ).otherwise(expr)
                 df = df.withColumn(col_name, expr)
