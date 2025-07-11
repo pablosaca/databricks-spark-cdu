@@ -99,7 +99,7 @@ def impute_nulls_out_sample(
 def create_new_col(
         df: DF,
         colname: Union[str, List[str]],
-        group_levels: Optional[List[str, float]] = None
+        group_levels: Optional[List[Union[str, float]]] = None
 ) -> DF:
     """
     Utiliza este método si necesitas crear nuevas variables

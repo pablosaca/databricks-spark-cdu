@@ -1,4 +1,4 @@
-from typing import Tuple, Union, Optional
+from typing import Union, Optional
 from pyspark.sql.session import SparkSession
 from pyspark.sql import DataFrame as DF
 
@@ -28,7 +28,7 @@ class LoadData:
         self.socioeconomic_table_name = socioeconomic_table_name
         self.target_table_name = target_table_name
 
-    def get_basic_data(self) -> Union[DF, Tuple[DF, DF]]:
+    def get_basic_data(self) -> DF:
         """
         Obtención de tablón de features (y target asociado si aplica)
         En este método se cargan los ficheros y se genera el tablón para continuar
@@ -61,11 +61,11 @@ class LoadData:
         return self.spark_session.read.table(table_name)
 
     @staticmethod
-    def __merge_tables(df1: DF, df2: DF, cols_merge: Union[str, list]) -> DF:
+    def __merge_tables(df1: DF, df2: DF, cols_merge: Union[str, list], how: str = "left") -> DF:
         """
         Cruce de tablas para construir el macrotablón
         # TODO: DEFINE UNA FUNCIÓN PARA CRUZAR TABLAS EN PYSPARK
         """
-        logger.info(f"Se cruzan dos tablas (left-join) por {cols_merge}")
-        df1 = df1.join(df2, on=cols_merge, how="left")
+        logger.info(f"Se cruzan dos tablas ({how}-join) por {cols_merge}")
+        df1 = df1.join(df2, on=cols_merge, how=how)
         return df1
