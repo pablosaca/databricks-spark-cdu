@@ -1,6 +1,6 @@
 # Documentación
 
-Este proyecto trata sobre xsell de productos en spark.
+Este proyecto trata sobre un CdU de venta cruzada de productos usando pyspark.
 
 ```
 
@@ -14,8 +14,11 @@ Este proyecto trata sobre xsell de productos en spark.
 │    └── predict                                    # código fuente para la predicción
 │         └── predict.py
 │
-│     └──preprocessing                              # código fuente para la limpieza de las series y la generación de features
-│         └── clean_data.py                           
+│   └──data                                         # código fuente para la carga de datos y obtención de muestras
+│         └── load_data.py      
+│
+│   └──preprocessing                                # código fuente para la limpieza de las muestras
+│         └── preprocessing.py                           
 │
 │   └── utils                                       # código fuente para la carga de datos, visualización y otros 
 │         └── graphs.py                           
@@ -23,7 +26,7 @@ Este proyecto trata sobre xsell de productos en spark.
 │         └── logger.py                           
 │
 │
-├── data                                    # se encuentran disponibles ficheros csv como input del proyecto 
+├── input_data                              # se encuentran disponibles ficheros csv como input del proyecto 
 │  
 ├── requirements.txt                        # requirements list
 
@@ -34,13 +37,13 @@ Este proyecto trata sobre xsell de productos en spark.
 Creación de un entorno virtual del proyecto
 
 ```
-conda create -n forecasting python=3.10
+conda create -n cdu python=3.10
 ```
 
 Para activar el entorno virtual usa la siguiente instrucción
 
 ```
-conda activate forecasting
+conda activate cdu
 ```
 
 Así, instala las dependencias del fichero `requirements.txt` usando `pip`
