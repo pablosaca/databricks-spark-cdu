@@ -59,9 +59,11 @@ def impute_nulls_for_numeric_cols(
                      F.coalesce(F.col(col_name), F.col(f"{method_name}_{col_name}"))
                  ).drop(f"{method_name}_{col_name}")
         )
-        value_dict = {
+        defualt_dict = {
             col_name: {row[stratific_col]: row[f"{method_name}_{col_name}"] for row in value.collect()}
         }
+        value_dict = {stratific_col: defualt_dict}
+        del defualt_dict
     return df, value_dict
 
 
@@ -75,14 +77,17 @@ def impute_nulls_for_categorical_cols(df: DF, colname: str, stratific_col: Optio
     pass
 
 
-def impute_nulls_out_sample(
+def impute_nulls_for_numerical_cols_out_sample(
         df: DF,
         col_name: str,
-        impute_value_or_mapping: [Union[float, int, Dict[str, Union[float, int]]]],
-        stratific_col: Optional[str] = None
+        impute_value_or_mapping: [Union[float, int, Dict[str, Union[float, int]]]]
 ):
     """
     Imputación de valores para las predicciones futuras
+
+    impute_value_or_mapping es un diccionario cuya clave es la variable a imputar
+    Puede tener como valores el valor a imputar o un diccionario anidado
+    si se emplea un tipo de imputación estratificada
     """
     if isinstance(impute_value_or_mapping, (float, int)):
         df = df.withColumn(
@@ -91,11 +96,7 @@ def impute_nulls_out_sample(
         )
         # asumimos que es un diccionario anidado con valores float o enteros
     elif isinstance(impute_value_or_mapping, dict):
-        if stratific_col is None:
-            msg = "Se debe proporcionar `stratific_col` para imputación condicional"
-            logger.error(msg)
-            raise ValueError(msg)
-        for cond_col, mapping in impute_value_or_mapping.items():
+        for stratific_col, mapping in impute_value_or_mapping.items():
             # partimos de la columna original
             expr = F.col(col_name)
             for cond_val, impute_val in mapping.items():
