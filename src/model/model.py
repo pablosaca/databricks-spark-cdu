@@ -136,7 +136,7 @@ class ScikitLearnTrainer(ClassificationTrainer):
                 f"Incorrecto framework de modelización a utilizar. Solo puede usarse {api_framework_available}"
             )
 
-        aux_cat_feats = ["Gender", "Vehicle_Age", "Vehicle_Damage"]
+        aux_cat_feats = ["Gender", "Vehicle_Age", "Vehicle_Damage", "Quality_of_Life"]
         self.categorical_features = categorical_features if categorical_features is not None else aux_cat_feats
 
         model_params = {"n_estimators": 115, "learning_rate": 0.03}
@@ -154,18 +154,19 @@ class ScikitLearnTrainer(ClassificationTrainer):
         logger.info(f"Obtenidas las features del modelo: {features_model}")
 
         logger.info("Conversión de los Spark dataframes a Pandas dataframes")
-        train_pdf = train_df.select(*features_model).toPandas()
-        val_pdf = val_df.select(*features_model).toPandas()
+        train_pdf = train_df.toPandas()
+        val_pdf = val_df.toPandas()
 
         X_train = train_pdf[features_model].copy()
         y_train = train_pdf[self.target]
         X_val = val_pdf[features_model].copy()
         y_val = val_pdf[self.target]
 
+        logger.info("Identificación variables categóricas para usar en el modelo")
         X_train = self.__select_categorical_features(X_train)
         X_val = self.__select_categorical_features(X_val)
 
-        logger.info("Entrenamiento de un modelo lightgbm en scikit-learn")
+        logger.info("Entrenamiento de un modelo lightgbm usando scikit-learn")
         self.__model_fitted(X_train, y_train)
         y_pred_train = self.model.predict(X_train)
         y_pred_val = self.model.predict(X_val)
