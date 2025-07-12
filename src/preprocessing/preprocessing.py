@@ -67,16 +67,6 @@ def impute_nulls_for_numeric_cols(
     return df, value_dict
 
 
-def impute_nulls_for_categorical_cols(df: DF, colname: str, stratific_col: Optional[str] = None) -> DF:
-    """
-    Imputación de datos faltantes para una columna específica.
-
-    Si fuese necesario utilizar este método, usa métodos internos definir la función
-    """
-    # TODO: SI FUESE NECESARIO IMPLEMENTAR CÓDIGO FUENTE PARA IMPUTAR VARIABLES CATEGÓRICAS
-    pass
-
-
 def impute_nulls_for_numerical_cols_out_sample(
         df: DF,
         col_name: str,
@@ -106,6 +96,16 @@ def impute_nulls_for_numerical_cols_out_sample(
                 ).otherwise(expr)
                 df = df.withColumn(col_name, expr)
     return df
+
+
+def impute_nulls_for_categorical_cols(df: DF, colname: str, stratific_col: Optional[str] = None) -> DF:
+    """
+    Imputación de datos faltantes para una columna específica.
+
+    Si fuese necesario utilizar este método, usa métodos internos definir la función
+    """
+    # TODO: SI FUESE NECESARIO IMPLEMENTAR CÓDIGO FUENTE PARA IMPUTAR VARIABLES CATEGÓRICAS
+    pass
 
 
 def create_new_col(
