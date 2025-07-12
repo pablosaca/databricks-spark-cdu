@@ -1,7 +1,5 @@
 from typing import List, Optional
 
-from abc import ABC, abstractmethod
-
 import joblib
 import pandas as pd
 
@@ -17,7 +15,7 @@ from src.utils.logger import get_logger
 logger = get_logger()
 
 
-class Predict(ABC):
+class Predict:
     # TODO: el candidato puede refactorizar lo que considere adecuado
     def __init__(
             self,
@@ -55,13 +53,13 @@ class Predict(ABC):
             model = LogisticRegressionModel.load(f"{model_path}/{self.model_name}")
         return model
 
-    @abstractmethod
     def predict(self, df: DF) -> DF:
         """
         Predicción del modelo. Uso de Pandas UDF si el modelo es en scikit-learn
         """
         # TODO: EL CANDIDATO TENDRÁ QUE DEFINIR UNA PANDAS-UDF PARA HACER LA PREDICCIÓN DEL MODELO DE SCIKIT-LEARN
         model = self.load_model()
+        categorical_features = self.categorical_features.copy()
         if isinstance(model, LGBMClassifier):
 
             proba_schema = StructType([
@@ -70,8 +68,18 @@ class Predict(ABC):
             ])
 
             @pandas_udf(proba_schema)
-            def predict_proba_udf(features: pd.Series) -> pd.DataFrame:
-                preds_proba = model.predict_proba(features.to_list())
+            def predict_proba_udf(*cols) -> pd.DataFrame:
+
+                features_df = pd.concat(cols, axis=1)
+                features_df.columns = model.feature_names_in_  # para estar en el mismo orden uso el atributo de lgbm
+
+                # como en el caso del entrenamiento del modelo lgbm
+                # hacemos que las variables categóricas establecidas tengan el tipado adecuado
+                for col in categorical_features:
+                    if col in features_df.columns:
+                        features_df[col] = features_df[col].astype("category")
+
+                preds_proba = model.predict_proba(features_df.to_list())
                 result_df = pd.DataFrame(preds_proba, columns=["proba_0", "proba_1"])
                 return result_df
 

@@ -1,3 +1,5 @@
+import os
+
 from typing import Optional, List, Dict, Tuple, Union
 from abc import ABC, abstractmethod
 
@@ -121,9 +123,7 @@ class ClassificationTrainer(ABC):
 
     @abstractmethod
     def save_model(self):
-        # TODO: borrar para que lo defina el candidato
-        model_file = f"{self.path}/{self.file_name}/{self.model_name}.joblib"
-        joblib.dump(self.model, model_file)
+        pass
 
 
 class ScikitLearnTrainer(ClassificationTrainer):
@@ -236,16 +236,10 @@ class ScikitLearnTrainer(ClassificationTrainer):
         Se tienen en cuenta las variables categóricas.
         Debes implementar el método si usas la modelización en spark
         """
-
-        if isinstance(df, pd.DataFrame):
-            for col in self.categorical_features:
-                if col in df.columns:
-                    df[col] = df[col].astype('category')
-                    logger.info(f"La variable {col} es convertida a categórica")
-        else:
-            msg = "Este método es utilizado cuando el dataset es Pandas dataframe"
-            logger.info(msg)
-            raise TypeError(msg)
+        for col in self.categorical_features:
+            if col in df.columns:
+                df[col] = df[col].astype('category')
+                logger.info(f"La variable {col} es convertida a categórica")
         return df
 
     def save_model(self):
@@ -253,7 +247,12 @@ class ScikitLearnTrainer(ClassificationTrainer):
         Guardado del modelo (el directorio se obtiene de los atributos de la clase)
         """
         # TODO: borrar para que lo defina el candidato
-        model_file = f"{self.path}/{self.file_name}/{self.model_name}.joblib"
+        model_path = f"{self.path}/{self.file_name}"
+        if not os.path.exists(model_path):
+            os.makedirs(model_path)
+            logger.info(f"Directorio {model_path} creado para guardar el artefacto del modelo")
+
+        model_file = f"{model_path}/{self.model_name}.joblib"
         joblib.dump(self.model, model_file)
 
 
