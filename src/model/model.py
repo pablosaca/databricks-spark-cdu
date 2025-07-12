@@ -245,10 +245,7 @@ class PySparkTrainer(ClassificationTrainer):
         """
         Entrenamiento del modelo
         """
-        if not isinstance(train_df, DF) or not isinstance(val_df, DF):
-            msg = f"Incorrecto tipado del dataset de entrada. Debe ser un dataframe de spark"
-            logger.info(msg)
-            raise TypeError(msg)
+        self._previous_check_train_model(train_df, val_df)
 
         logger.info("Entrenamiento de un modelo de regresión logística en spark")
         # TODO: DEFINIR EL CÓDIGO PARA IMPLEMENTAR EL ENTRENAMIENTO DE UNA REGRESIÓN LOGÍSTICA EN PYSPARK
@@ -258,8 +255,8 @@ class PySparkTrainer(ClassificationTrainer):
         y_val = None
         y_pred_val = None
 
-        metrics_train = self.__get_metrics(y_train, y_pred_train)
-        metrics_val = self.__get_metrics(y_val, y_pred_val)
+        metrics_train = self._get_metrics(y_train, y_pred_train)
+        metrics_val = self._get_metrics(y_val, y_pred_val)
         return metrics_train, metrics_val
 
     def __model_fitted(self, X_train: pd.DataFrame, y_train: pd.Series) -> None:
