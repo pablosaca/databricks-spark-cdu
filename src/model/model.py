@@ -43,32 +43,27 @@ class ClassificationTrainer(ABC):
 
     @staticmethod
     def _get_metrics(
-            y_true: Union[DF, pd.Series, np.ndarray],
-            y_pred: Union[DF, pd.Series, np.ndarray],
+            df: Union[DF, pd.DataFrame, np.ndarray],
     ) -> Dict[str, Union[float, np.ndarray]]:
         """
         Calcula métricas de bondad de ajuste (accuracy, precision, recall y f1-score).
         Puedes utilizar otras métricas de clasificación si lo consideras
         """
 
-        if isinstance(y_true, DF) and isinstance(y_pred, DF):
-            y_true = y_true.toPandas()
-            y_pred = y_pred.toPandas()
-
-        elif isinstance(y_true, pd.Series) and isinstance(y_pred, pd.Series):
-            y_true = y_true.copy()
-            y_pred = y_pred.copy()
-
-        elif type(y_true) != type(y_pred):
-            msg = "y_true y y_pred deben ser del mismo tipo: ambos Spark dataFrame o ambos Pandas dataframe"
+        if isinstance(df, DF):
+            df = df.toPandas()
+        elif isinstance(df, pd.DataFrame):
+            df = df.copy()
+        else:
+            msg = "El dataframe de predicciones no tiene el formato adecuado. Debe ser Spark / Pandas dataFrame"
             logger.error(msg)
             raise TypeError(msg)
 
         metrics = {
-            "accuracy": accuracy_score(y_true, y_pred),
-            "precision": precision_score(y_true, y_pred),
-            "recall": recall_score(y_true, y_pred),
-            "f1": f1_score(y_true, y_pred)
+            "accuracy": accuracy_score(df["y_true"], df["y_pred"]),
+            "precision": precision_score(df["y_true"], df["y_pred"]),
+            "recall": recall_score(df["y_true"], df["y_pred"]),
+            "f1": f1_score(df["y_true"], df["y_pred"])
         }
         logger.info("Métricas de bondad de ajuste son calculadas")
         return metrics
@@ -147,7 +142,8 @@ class ScikitLearnTrainer(ClassificationTrainer):
             self, train_df: DF, val_df: DF
     ) -> Tuple[Dict[str, Union[float, np.ndarray]], Dict[str, Union[float, np.ndarray]]]:
         """
-        Entrenamiento del modelo de scikit-learn partiendo
+        Entrenamiento del modelo de scikit-learn partiendo de un modelo lightgbm
+        # TODO: se dispone de un proceso de entrenamiento estándar
         """
         self._previous_check_train_model(train_df, val_df)
         features_model = [col for col in train_df.columns if col not in self.target]
@@ -172,14 +168,35 @@ class ScikitLearnTrainer(ClassificationTrainer):
         y_pred_val = self.model.predict(X_val)
         logger.info("Realización de las predicciones del modelo")
 
-        metrics_train = self._get_metrics(y_train, y_pred_train)
-        metrics_val = self._get_metrics(y_val, y_pred_val)
+        predictions_train_df = self.__model_predictions_format(y_train, y_pred_train)
+        predictions_val_df = self.__model_predictions_format(y_val, y_pred_val)
+        metrics_train = self._get_metrics(predictions_train_df)
+        metrics_val = self._get_metrics(predictions_val_df)
         logger.info("Obtenidas las métricas del modelo para la muestra de entrenamiento y validación")
         return metrics_train, metrics_val
+
+    @staticmethod
+    def __model_predictions_format(y_real: pd.Series, y_pred: np.ndarray) -> pd.DataFrame:
+        """
+        Paso de formato a pandas dataframe
+        """
+        if len(y_real) != len(y_pred):
+            msg = "Dimensiones de y_real y y_pred no coinciden"
+            logger.error(msg)
+            raise ValueError(msg)
+
+        result_df = pd.DataFrame(
+            {
+                "y_true": y_real.values,  # es una serie obtenemos el array
+                "y_pred": y_pred.flatten()  # es un np.ndarray pero por si fuese (n,1)
+             }
+        )
+        return result_df
 
     def __model_fitted(self, X_train: pd.DataFrame, y_train: pd.Series) -> None:
         """
         Entrenamiento de un modelo LGBM a partir de la muestra de entrenamiento (feats and target column)
+        # TODO: se dispone de un entrenamiento básico, se permite cualquier mejora al respecto en función de los datos de partida
         """
         self.model = LGBMClassifier(
             n_estimators=self.lightgbm_params["n_estimators"],
