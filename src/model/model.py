@@ -22,7 +22,6 @@ class ClassificationTrainer(ABC):
     # TODO: REFACTORIZA LO QUE CONSIDERES DE LA CLASE Y SUS MÉTODOS
     def __init__(
             self,
-            df: DF,
             model_framework: str = "pyspark",
             target: str = "Response",
             frac_sample: float = 0.7,
@@ -36,11 +35,6 @@ class ClassificationTrainer(ABC):
             logger.error(msg)
             raise ValueError(msg)
 
-        if not isinstance(df, DF):
-            msg = f"Incorrecto tipado del dataset de entrada. Debe ser un dataframe de spark"
-            logger.error(msg)
-            raise TypeError(msg)
-
         self.target = target
         self.frac_sample = frac_sample
         self.seed = seed
@@ -48,7 +42,7 @@ class ClassificationTrainer(ABC):
         self.model = None  # se define una vez entrenado el modelo
 
     @staticmethod
-    def __get_metrics(
+    def _get_metrics(
             y_true: Union[DF, pd.Series, np.ndarray],
             y_pred: Union[DF, pd.Series, np.ndarray],
     ) -> Dict[str, Union[float, np.ndarray]]:
@@ -83,14 +77,35 @@ class ClassificationTrainer(ABC):
         """
         Obtiene la muestra de entrenamiento y de validación
         """
+
+        if not isinstance(df, DF):
+            msg = f"Incorrecto tipado del dataset de entrada. Debe ser un dataframe de spark"
+            logger.error(msg)
+            raise TypeError(msg)
+
         if "id" not in df.columns:
             msg = "`id` ha sido eliminado del dataset. La columna de identificación debe mantenerse"
             logger.error(msg)
             raise ValueError(msg)
+
         # TODO: En este caso, utilizamos un muestro aleatorio simple pero puedes plantear posibles mejoras
         train_df = df.sample(fraction=self.frac_sample, seed=self.seed)
         val_df = df.join(train_df, on="id", how="left_anti")
         return train_df, val_df
+
+    def _previous_check_train_model(self, train_df: DF, val_df: DF) -> None:
+        """
+        Chequeo formato
+        """
+        if not isinstance(train_df, DF) or not isinstance(val_df, DF):
+            msg = f"Incorrecto tipado del dataset de entrada. Debe ser un dataframe de spark"
+            logger.error(msg)
+            raise TypeError(msg)
+
+        if self.target not in train_df.columns or self.target not in val_df.columns:
+            msg = f"Error. La variable {self.target} no se encuentra en el dataset de entrenamiento o validación"
+            logger.error(msg)
+            raise ValueError(msg)
 
     @abstractmethod
     def train_model(
@@ -106,7 +121,6 @@ class ScikitLearnTrainer(ClassificationTrainer):
     # TODO: uso de un modelo de boosting -> LigthGBM pero puedes plantearte otro modelo
     def __init__(
             self,
-            df: DF,
             model_framework: str = "scikit-learn",
             target: str = "Response",
             frac_sample: float = 0.7,
@@ -114,7 +128,7 @@ class ScikitLearnTrainer(ClassificationTrainer):
             lightgbm_params: Optional[Dict[str, int]] = None,
             seed: int = 123
     ):
-        super().__init__(df, model_framework, target, frac_sample, seed)
+        super().__init__(model_framework, target, frac_sample, seed)
 
         api_framework_available = "scikit-learn"
         if not self.model_framework == api_framework_available:
@@ -122,7 +136,6 @@ class ScikitLearnTrainer(ClassificationTrainer):
                 f"Incorrecto framework de modelización a utilizar. Solo puede usarse {api_framework_available}"
             )
 
-        self.features = [col for col in df.columns if col not in ['target']]
         aux_cat_feats = ["Gender", "Vehicle_Age", "Vehicle_Damage"]
         self.categorical_features = categorical_features if categorical_features is not None else aux_cat_feats
 
@@ -134,20 +147,19 @@ class ScikitLearnTrainer(ClassificationTrainer):
             self, train_df: DF, val_df: DF
     ) -> Tuple[Dict[str, Union[float, np.ndarray]], Dict[str, Union[float, np.ndarray]]]:
         """
-        Entrenamiento del modelo de scikit-learn
+        Entrenamiento del modelo de scikit-learn partiendo
         """
-        if not isinstance(train_df, DF) or not isinstance(val_df, DF):
-            msg = f"Incorrecto tipado del dataset de entrada. Debe ser un dataframe de spark"
-            logger.error(msg)
-            raise TypeError(msg)
+        self._previous_check_train_model(train_df, val_df)
+        features_model = [col for col in train_df.columns if col not in self.target]
+        logger.info(f"Obtenidas las features del modelo: {features_model}")
 
         logger.info("Conversión de los Spark dataframes a Pandas dataframes")
-        train_pdf = train_df.toPandas()
-        val_pdf = val_df.toPandas()
+        train_pdf = train_df.select(*features_model).toPandas()
+        val_pdf = val_df.select(*features_model).toPandas()
 
-        X_train = train_pdf[self.features].copy()
+        X_train = train_pdf[features_model].copy()
         y_train = train_pdf[self.target]
-        X_val = val_pdf[self.features].copy()
+        X_val = val_pdf[features_model].copy()
         y_val = val_pdf[self.target]
 
         X_train = self.__select_categorical_features(X_train)
@@ -159,8 +171,8 @@ class ScikitLearnTrainer(ClassificationTrainer):
         y_pred_val = self.model.predict(X_val)
         logger.info("Realización de las predicciones del modelo")
 
-        metrics_train = self.__get_metrics(y_train, y_pred_train)
-        metrics_val = self.__get_metrics(y_val, y_pred_val)
+        metrics_train = self._get_metrics(y_train, y_pred_train)
+        metrics_val = self._get_metrics(y_val, y_pred_val)
         logger.info("Obtenidas las métricas del modelo para la muestra de entrenamiento y validación")
         return metrics_train, metrics_val
 
