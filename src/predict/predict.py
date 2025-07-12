@@ -1,10 +1,16 @@
-from typing import Union, Dict, List
+from typing import List, Optional
+
 from abc import ABC, abstractmethod
 
-from pyspark.sql import DataFrame as DF
-from pyspark.sql import functions as F
-from pyspark.ml.classification import LogisticRegressionModel
+import joblib
+import pandas as pd
+
 from lightgbm import LGBMClassifier
+from pyspark.sql import DataFrame as DF
+from pyspark.sql.functions import pandas_udf
+from pyspark.sql.types import StructType, StructField, DoubleType
+
+from pyspark.ml.classification import LogisticRegressionModel
 
 from src.utils.logger import get_logger
 
@@ -12,25 +18,64 @@ logger = get_logger()
 
 
 class Predict(ABC):
+    # TODO: el candidato puede refactorizar lo que considere adecuado
     def __init__(
             self,
-            model: Union[LogisticRegressionModel, LGBMClassifier],
-            impute_values_dict: Dict[str, Union[float, dict]],
-            categorical_features: List[str]
+            model_framework: str = "pyspark",
+            file_name: str = "prueba_practica_santalucia",
+            model_name: str = "ml_model",
+            path: str = "/databricks/driver",
+            categorical_features: Optional[List[str]] = None
     ):
-        self.model = model
-        self.impute_values_dict = impute_values_dict
-        self.categorical_features = categorical_features
 
-        if not isinstance(self.model, (LGBMClassifier, LogisticRegressionModel)):
-            msg = f"Formato icompatible del modelo. Uso `LGBMClassifier` (sckit-learn) " \
-                  f"o `LogisticRegressionModel` (pyspark)"
+        self.model_framework = model_framework
+
+        api_fremework_available_list = ["scikit-learn", "pyspark"]
+        if self.model_framework not in api_fremework_available_list:
+            msg = f"Incorrecto framework utilizado: {api_fremework_available_list}"
             logger.error(msg)
-            raise TypeError(msg)
+            raise ValueError(msg)
+
+        self.file_name = file_name
+        self.model_name = model_name
+        self.path = path
+
+        aux_cat_feats = ["Gender", "Vehicle_Age", "Vehicle_Damage", "Quality_of_Life"]
+        self.categorical_features = categorical_features if categorical_features is not None else aux_cat_feats
+
+    def load_model(self):
+        """
+        Carga del modelo diferenciando si es de scikit-learn o pyspark
+        """
+        model_path = f"{self.path}/{self.file_name}"
+        if self.model_framework == "scikit-learn":
+            model_file = f"{model_path}/{self.model_name}.joblib"
+            model = joblib.load(model_file)
+        else:
+            model = LogisticRegressionModel.load(f"{model_path}/{self.model_name}")
+        return model
 
     @abstractmethod
     def predict(self, df: DF) -> DF:
         """
         Predicción del modelo. Uso de Pandas UDF si el modelo es en scikit-learn
         """
-        pass
+        # TODO: EL CANDIDATO TENDRÁ QUE DEFINIR UNA PANDAS-UDF PARA HACER LA PREDICCIÓN DEL MODELO DE SCIKIT-LEARN
+        model = self.load_model()
+        if isinstance(model, LGBMClassifier):
+
+            proba_schema = StructType([
+                StructField("proba_0", DoubleType()),
+                StructField("proba_1", DoubleType())
+            ])
+
+            @pandas_udf(proba_schema)
+            def predict_proba_udf(features: pd.Series) -> pd.DataFrame:
+                preds_proba = model.predict_proba(features.to_list())
+                result_df = pd.DataFrame(preds_proba, columns=["proba_0", "proba_1"])
+                return result_df
+
+            predictions_df = df.withColumn("probs", predict_proba_udf(df["features"]))
+        else:
+            predictions_df = model.transform(df)
+        return predictions_df

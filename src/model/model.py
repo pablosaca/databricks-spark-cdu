@@ -1,6 +1,7 @@
 from typing import Optional, List, Dict, Tuple, Union
 from abc import ABC, abstractmethod
 
+import joblib
 import numpy as np
 import pandas as pd
 
@@ -25,7 +26,10 @@ class ClassificationTrainer(ABC):
             model_framework: str = "pyspark",
             target: str = "Response",
             frac_sample: float = 0.7,
-            seed: int = 123
+            seed: int = 123,
+            file_name: str = "prueba_practica_santalucia",
+            model_name: str = "ml_model",
+            path: str = "/databricks/driver"
     ):
         self.model_framework = model_framework
 
@@ -38,6 +42,10 @@ class ClassificationTrainer(ABC):
         self.target = target
         self.frac_sample = frac_sample
         self.seed = seed
+
+        self.file_name = file_name
+        self.model_name = model_name
+        self.path = path
 
         self.model = None  # se define una vez entrenado el modelo
 
@@ -111,6 +119,12 @@ class ClassificationTrainer(ABC):
         """
         pass
 
+    @abstractmethod
+    def save_model(self):
+        # TODO: borrar para que lo defina el candidato
+        model_file = f"{self.path}/{self.file_name}/{self.model_name}.joblib"
+        joblib.dump(self.model, model_file)
+
 
 class ScikitLearnTrainer(ClassificationTrainer):
     # TODO: uso de un modelo de boosting -> LigthGBM pero puedes plantearte otro modelo
@@ -121,9 +135,12 @@ class ScikitLearnTrainer(ClassificationTrainer):
             frac_sample: float = 0.7,
             categorical_features: Optional[List[str]] = None,
             lightgbm_params: Optional[Dict[str, int]] = None,
-            seed: int = 123
+            seed: int = 123,
+            file_name: str = "prueba_practica_santalucia",
+            model_name: str = "ml_model",
+            path: str = "/databricks/driver"
     ):
-        super().__init__(model_framework, target, frac_sample, seed)
+        super().__init__(model_framework, target, frac_sample, seed, file_name, model_name, path)
 
         api_framework_available = "scikit-learn"
         if not self.model_framework == api_framework_available:
@@ -231,19 +248,29 @@ class ScikitLearnTrainer(ClassificationTrainer):
             raise TypeError(msg)
         return df
 
+    def save_model(self):
+        """
+        Guardado del modelo (el directorio se obtiene de los atributos de la clase)
+        """
+        # TODO: borrar para que lo defina el candidato
+        model_file = f"{self.path}/{self.file_name}/{self.model_name}.joblib"
+        joblib.dump(self.model, model_file)
+
 
 class PySparkTrainer(ClassificationTrainer):
 
     def __init__(
             self,
-            df: DF,
             model_framework: str = "pyspark",
             target: str = "Response",
             frac_sample: float = 0.7,
             categorical_features: Optional[List[str]] = None,
-            seed: int = 123
+            seed: int = 123,
+            file_name: str = "prueba_practica_santalucia",
+            model_name: str = "ml_model",
+            path: str = "/databricks/driver"
     ):
-        super().__init__(df, model_framework, target, frac_sample, seed)
+        super().__init__(model_framework, target, frac_sample, seed, file_name, model_name, path)
 
         api_framework_available = "pyspark"
         if not self.model_framework == api_framework_available:
@@ -251,7 +278,6 @@ class PySparkTrainer(ClassificationTrainer):
                 f"Incorrecto framework de modelización a utilizar. Solo puede usarse {api_framework_available}"
             )
 
-        self.features = [col for col in df.columns if col not in ['target']]
         aux_cat_feats = ["Gender", "Vehicle_Age", "Vehicle_Damage"]
         self.categorical_features = categorical_features if categorical_features is not None else aux_cat_feats
 
@@ -282,4 +308,11 @@ class PySparkTrainer(ClassificationTrainer):
         Entrenamiento de un modelo LGBM a partir de la muestra de entrenamiento (feats and target column)
         """
         # TODO PSC: IMPLEMENTACIÓN DEL ENTRENAMIENTO DE UN MODELO DE REGRESIÓN LOGÍSTICA
+        pass
+
+    def save_model(self):
+        """
+        Guardado del modelo (el directorio se obtiene de los atributos de la clase)
+        """
+        # TODO: borrar para que lo defina el candidato
         pass
