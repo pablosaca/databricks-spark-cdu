@@ -157,7 +157,7 @@ class ScikitLearnTrainer(ClassificationTrainer):
 
     def train_model(
             self, train_df: DF, val_df: DF
-    ) -> Tuple[Dict[str, Union[float, np.ndarray]], Dict[str, Union[float, np.ndarray]]]:
+    ) -> Dict[str, Dict[str, Union[float, np.ndarray]]]:
         """
         Entrenamiento del modelo de scikit-learn partiendo de un modelo lightgbm
         # TODO: se dispone de un proceso de entrenamiento estándar
@@ -190,7 +190,7 @@ class ScikitLearnTrainer(ClassificationTrainer):
         metrics_train = self._get_metrics(predictions_train_df)
         metrics_val = self._get_metrics(predictions_val_df)
         logger.info("Obtenidas las métricas del modelo para la muestra de entrenamiento y validación")
-        return metrics_train, metrics_val
+        return {"train_sample": metrics_train, "val_sample": metrics_val}
 
     @staticmethod
     def __model_predictions_format(y_real: pd.Series, y_pred: np.ndarray) -> pd.DataFrame:
@@ -292,14 +292,14 @@ class PySparkTrainer(ClassificationTrainer):
 
         logger.info("Entrenamiento de un modelo de regresión logística en spark")
         # TODO: DEFINIR EL CÓDIGO PARA IMPLEMENTAR EL ENTRENAMIENTO DE UNA REGRESIÓN LOGÍSTICA EN PYSPARK
+        # TODO: ANTES DE UTILIZAR EL MÉTODO '_get_metrics' DEBE PASARSE EL DATAFRAME DE SPARK
+        #  CON LAS PREDICCIONES A PANDAS CON LA ESTRUCTURA DE TRABAJO PLANTEADA
 
-        y_train = None
-        y_pred_train = None
-        y_val = None
-        y_pred_val = None
+        predictions_train_df = None
+        predictions_val_df = None
 
-        metrics_train = self._get_metrics(y_train, y_pred_train)
-        metrics_val = self._get_metrics(y_val, y_pred_val)
+        metrics_train = self._get_metrics(predictions_train_df)
+        metrics_val = self._get_metrics(predictions_val_df)
         return metrics_train, metrics_val
 
     def __model_fitted(self, X_train: pd.DataFrame, y_train: pd.Series) -> None:

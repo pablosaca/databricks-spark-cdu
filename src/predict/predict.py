@@ -5,6 +5,7 @@ import pandas as pd
 
 from lightgbm import LGBMClassifier
 from pyspark.sql import DataFrame as DF
+from pyspark.sql import functions as F
 from pyspark.sql.functions import pandas_udf
 from pyspark.sql.types import StructType, StructField, DoubleType
 
@@ -62,6 +63,10 @@ class Predict:
     def predict(self, df: DF) -> DF:
         """
         Predicción del modelo. Uso de Pandas UDF si el modelo es en scikit-learn
+        La salida de la pandas-udf será un campo "struct" (diccionario con claves `proba_0` y `proba_1`)
+
+        La salida final de este método es el Spark dataframe con las variables de entrada (features)
+        + 2 columnas adicionales que serán las probabilidades de presencia o ausencia del evento
         """
         # TODO: EL CANDIDATO TENDRÁ QUE DEFINIR UNA PANDAS-UDF PARA HACER LA PREDICCIÓN DEL MODELO DE SCIKIT-LEARN
         model = self.load_model()
@@ -73,7 +78,7 @@ class Predict:
                 StructField("proba_1", DoubleType())
             ])
 
-            @pandas_udf(proba_schema, functionType="scalar")
+            @pandas_udf(proba_schema)
             def predict_proba_udf(*cols) -> pd.DataFrame:
 
                 features_df = pd.concat(cols, axis=1)
@@ -88,7 +93,29 @@ class Predict:
                 preds_proba = model.predict_proba(features_df)
                 result_df = pd.DataFrame(preds_proba, columns=["proba_0", "proba_1"])
                 return result_df
-            predictions_df = df.withColumn("probs", predict_proba_udf(df["features"]))
+            predictions_df = df.withColumn(
+                "probs",
+                predict_proba_udf(*[df[col] for col in model.feature_names_in_])
+            )
+            logger.info("Aplicada pandas-udf para obtener las predicciones")
         else:
             predictions_df = model.transform(df)
+        predictions_df = self.__output_predictions_format(predictions_df)
         return predictions_df
+
+    def __output_predictions_format(self, df: DF) -> DF:
+        """
+        Método para disponer formato estandarizado en la salida del dataframe de predicciones
+        ya sea usando un modelo de scikit-learn o de spark.
+        # TODO: es necesario implementar el formateo de salida en un modelo de spark
+        """
+        if self.model_framework == "scikit-learn":
+            df = df.select(
+                "*",
+                F.col("probs.proba_1").alias("Probs_1"),
+                F.col("probs.proba_0").alias("Probs_0")
+            ).drop("probs")
+        else:
+            df = df.select("*")
+        logger.info(f"Formateada la salida del Spark dataframe de las predicciones {self.model_framework}")
+        return df
