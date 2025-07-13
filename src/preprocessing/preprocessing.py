@@ -59,18 +59,17 @@ def impute_nulls_for_numeric_cols(
                      F.coalesce(F.col(col_name), F.col(f"{method_name}_{col_name}"))
                  ).drop(f"{method_name}_{col_name}")
         )
-        defualt_dict = {
+        value_dict = {
             col_name: {row[stratific_col]: row[f"{method_name}_{col_name}"] for row in value.collect()}
         }
-        value_dict = {stratific_col: defualt_dict}
-        del defualt_dict
     return df, value_dict
 
 
 def impute_nulls_for_numerical_cols_out_sample(
         df: DF,
         col_name: str,
-        impute_value_or_mapping: [Union[float, int, Dict[str, Union[float, int]]]]
+        impute_value_or_mapping: [Union[float, int, Dict[str, Union[float, int]]]],
+        stratific_col: Optional[str] = None
 ):
     """
     Imputación de valores para las predicciones futuras
@@ -78,23 +77,26 @@ def impute_nulls_for_numerical_cols_out_sample(
     impute_value_or_mapping es un diccionario cuya clave es la variable a imputar
     Puede tener como valores el valor a imputar o un diccionario anidado
     si se emplea un tipo de imputación estratificada
+
+    stratfic_col es la variable utilizada como soporte para hacer una imputación estratificada
     """
     if isinstance(impute_value_or_mapping, (float, int)):
         df = df.withColumn(
             col_name,
             F.when(F.col(col_name).isNull(), impute_value_or_mapping).otherwise(F.col(col_name))
         )
-        # asumimos que es un diccionario anidado con valores float o enteros
+    # asumimos que es un diccionario anidado con valores float o enteros
     elif isinstance(impute_value_or_mapping, dict):
-        for stratific_col, mapping in impute_value_or_mapping.items():
-            # partimos de la columna original
-            expr = F.col(col_name)
-            for cond_val, impute_val in mapping.items():
-                expr = F.when(
-                    (F.col(stratific_col) == cond_val) & (F.col(col_name).isNull()),
-                    impute_val
-                ).otherwise(expr)
-                df = df.withColumn(col_name, expr)
+        logger.info(f"imputando {col_name} usando {stratific_col}")
+        mapping = impute_value_or_mapping.get(col_name, {})
+        for cond_val, impute_val in mapping.items():
+            df = df.withColumn(
+                col_name,
+                F.when(
+                    (F.col(stratific_col) == cond_val) & (F.col(col_name).isNull()), impute_val
+                ).otherwise(F.col(col_name))
+            )
+    logger.info(f"{col_name} ha sido imputada según {impute_value_or_mapping}")
     return df
 
 
