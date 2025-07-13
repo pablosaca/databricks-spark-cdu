@@ -22,6 +22,8 @@ def boxplot(df: DF, num_col: str, cat_col: Optional[str] = None) -> None:
 def scatterplot(df: DF, col_1: str, col_2: str, cat_col: Optional[str] = None) -> None:
     """
     Partiendo de un dataframe de spark se obtiene un gráfico de dispersión entre dos variables numéricas
+
+    Importante: si se usa cat_col difirente de None la variable tiene que ser categórica (no valen variables enteras)
     """
 
     cols_to_select = [col_1, col_2] + ([cat_col] if cat_col is not None else [])
@@ -38,7 +40,7 @@ def scatterplot(df: DF, col_1: str, col_2: str, cat_col: Optional[str] = None) -
     fig.show()
 
 
-def correlacion_matrix_plot(df: DF, num_cols: List[str]) -> None:
+def correlation_matrix_plot(df: DF, num_cols: List[str]) -> None:
     """
     Partiendo de un dataframe de spark se obtiene la correlación entre las variables numéricas
     """

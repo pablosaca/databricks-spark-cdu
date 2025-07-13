@@ -15,7 +15,7 @@ def impute_nulls_for_numeric_cols(
     Método para imputar valores nulos en el dataset.
     Imputación simple: mediana, media, de forma estratificada
     Devuelve la tabla y un diccionario (clave: nombre de la variable y valor: valor por el que se imputa)
-    # TODO: REFACTORIZA LA ESTRUCTURA DEL CÓDIGO SI LO CREES CONVENIENTE
+    # TODO: EL CANDIDATO DEBERÁ REFACTORIZAR LA ESTRUCTURA DEL CÓDIGO SI LO CREE CONVENIENTE
     """
     if stratific_col is None:
         if method_name == "mean":

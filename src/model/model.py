@@ -22,10 +22,10 @@ logger = get_logger()
 
 
 class ClassificationTrainer(ABC):
-    # TODO: REFACTORIZA LO QUE CONSIDERES DE LA CLASE Y SUS MÉTODOS
+    # TODO: EL CANDIDATO PODRÁ REFACTORIZAR LO QUE CONSIDERE DE LA CLASE Y SUS MÉTODOS
     def __init__(
             self,
-            model_framework: str = "pyspark",
+            model_framework: str = "spark-mllib",
             target: str = "Response",
             frac_sample: float = 0.7,
             seed: int = 123,
@@ -35,7 +35,7 @@ class ClassificationTrainer(ABC):
     ):
         self.model_framework = model_framework
 
-        api_fremework_available_list = ["scikit-learn", "pyspark"]
+        api_fremework_available_list = ["scikit-learn", "spark-mllib"]
         if self.model_framework not in api_fremework_available_list:
             msg = f"Incorrecto framework utilizado: {api_fremework_available_list}"
             logger.error(msg)
@@ -93,7 +93,7 @@ class ClassificationTrainer(ABC):
             logger.error(msg)
             raise ValueError(msg)
 
-        # TODO: En este caso, utilizamos un muestro aleatorio simple pero puedes plantear posibles mejoras
+        # TODO PSC: En este caso, se utiliza un muestro aleatorio simple pero el candidato debería plantear posibles mejoras
         train_df = df.sample(fraction=self.frac_sample, seed=self.seed)
         val_df = df.join(train_df, on="id", how="left_anti")
         return train_df, val_df
@@ -127,7 +127,9 @@ class ClassificationTrainer(ABC):
 
 
 class ScikitLearnTrainer(ClassificationTrainer):
-    # TODO: uso de un modelo de boosting -> LigthGBM pero puedes plantearte otro modelo
+    # TODO: SE DEJA AL CANDIDATO LA POSIBILIDAD DE UTILIZAR UN MODELO DE BOOSTING -> LigthGBM
+    # TODO: EL CANDIDATO PODRÁ PLANTEAR OTRO MODELO SI LO CONSIDERA
+    # TODO: EN CASO DE ACTUALIZAR EL TIPO DE MODELO DEBE TENER EN CUENTA SUS IMPLICACIONES EN LA CLASE Y EN EL RESTO DEL PROYECTO
     def __init__(
             self,
             model_framework: str = "scikit-learn",
@@ -159,8 +161,7 @@ class ScikitLearnTrainer(ClassificationTrainer):
             self, train_df: DF, val_df: DF
     ) -> Dict[str, Dict[str, Union[float, np.ndarray]]]:
         """
-        Entrenamiento del modelo de scikit-learn partiendo de un modelo lightgbm
-        # TODO: se dispone de un proceso de entrenamiento estándar
+        Entrenamiento del modelo de scikit-learn (aplicacióon a un modelo lightgbm)
         """
         self._previous_check_train_model(train_df, val_df)
         features_model = [col for col in train_df.columns if col not in self.target]
@@ -246,7 +247,7 @@ class ScikitLearnTrainer(ClassificationTrainer):
         """
         Guardado del modelo (el directorio se obtiene de los atributos de la clase)
         """
-        # TODO: borrar para que lo defina el candidato
+        # TODO PSC: borrar para que lo defina el candidato
         model_path = f"{self.path}/{self.file_name}"
         if not os.path.exists(model_path):
             os.makedirs(model_path)
@@ -257,10 +258,12 @@ class ScikitLearnTrainer(ClassificationTrainer):
 
 
 class PySparkTrainer(ClassificationTrainer):
-
+    # TODO: SE DEJA AL CANDIDATO ACTUALIZAR LOS MÉTODOS NECESARIOS PARA REALIZAR UN ENTRENAMIENTO DE UNA REGRESIÓN LOGÍSTICA EN SPARK
+    # TODO: EL CANDIDATO DEBE TENER EN CUENTA QUE NO PODRÁ SOBREESCRIBIR MÉTODOS PROVENIENTES DE LA CLASE PADRE
+    # TODO: EN CASO DE ACTUALIZAR EL TIPO DE MODELO DEBE TENER EN CUENTA SUS IMPLICACIONES EN LA CLASE Y EN EL RESTO DEL PROYECTO
     def __init__(
             self,
-            model_framework: str = "pyspark",
+            model_framework: str = "spark-mllib",
             target: str = "Response",
             frac_sample: float = 0.7,
             categorical_features: Optional[List[str]] = None,
@@ -271,7 +274,7 @@ class PySparkTrainer(ClassificationTrainer):
     ):
         super().__init__(model_framework, target, frac_sample, seed, file_name, model_name, path)
 
-        api_framework_available = "pyspark"
+        api_framework_available = "spark-mllib"
         if not self.model_framework == api_framework_available:
             logger.info(
                 f"Incorrecto framework de modelización a utilizar. Solo puede usarse {api_framework_available}"
@@ -284,9 +287,9 @@ class PySparkTrainer(ClassificationTrainer):
 
     def train_model(
             self, train_df: DF, val_df: DF
-    ) -> Tuple[Dict[str, Union[float, np.ndarray]], Dict[str, Union[float, np.ndarray]]]:
+    ) -> Dict[str, Dict[str, Union[float, np.ndarray]]]:
         """
-        Entrenamiento del modelo
+        Entrenamiento del modelo de spark usando el framework de mllib
         """
         self._previous_check_train_model(train_df, val_df)
 
@@ -300,18 +303,19 @@ class PySparkTrainer(ClassificationTrainer):
 
         metrics_train = self._get_metrics(predictions_train_df)
         metrics_val = self._get_metrics(predictions_val_df)
-        return metrics_train, metrics_val
+        logger.info("Obtenidas las métricas del modelo para la muestra de entrenamiento y validación")
+        return {"train_sample": metrics_train, "val_sample": metrics_val}
 
     def __model_fitted(self, X_train: pd.DataFrame, y_train: pd.Series) -> None:
         """
         Entrenamiento de un modelo LGBM a partir de la muestra de entrenamiento (feats and target column)
         """
-        # TODO PSC: IMPLEMENTACIÓN DEL ENTRENAMIENTO DE UN MODELO DE REGRESIÓN LOGÍSTICA
+        # TODO: EL CANDIDATO DEBE IMPLEMENTAR DEL ENTRENAMIENTO DE UN MODELO DE REGRESIÓN LOGÍSTICA
         pass
 
     def save_model(self):
         """
         Guardado del modelo (el directorio se obtiene de los atributos de la clase)
         """
-        # TODO: borrar para que lo defina el candidato
+        # TODO: EL CANDIDATO DEBE IMPLEMENTAR LA MANERA EN QUE SE GUARDA UN MODELO DE SPARK
         pass

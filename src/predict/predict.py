@@ -18,10 +18,10 @@ logger = get_logger()
 
 
 class Predict:
-    # TODO: el candidato puede refactorizar lo que considere adecuado
+    # TODO: EL CANDIDATO PODRÁ REFACTORIZAR LO QUE CONSIDERE DE LA CLASE Y SUS MÉTODOS
     def __init__(
             self,
-            model_framework: str = "pyspark",
+            model_framework: str = "spark-mllib",
             is_pipeline: bool = False,
             file_name: str = "prueba_practica_santalucia",
             model_name: str = "ml_model",
@@ -32,7 +32,7 @@ class Predict:
         self.model_framework = model_framework
         self.is_pipeline = is_pipeline
 
-        api_fremework_available_list = ["scikit-learn", "pyspark"]
+        api_fremework_available_list = ["scikit-learn", "spark-mllib"]
         if self.model_framework not in api_fremework_available_list:
             msg = f"Incorrecto framework utilizado: {api_fremework_available_list}"
             logger.error(msg)
@@ -68,7 +68,8 @@ class Predict:
         La salida final de este método es el Spark dataframe con las variables de entrada (features)
         + 2 columnas adicionales que serán las probabilidades de presencia o ausencia del evento
         """
-        # TODO: EL CANDIDATO TENDRÁ QUE DEFINIR UNA PANDAS-UDF PARA HACER LA PREDICCIÓN DEL MODELO DE SCIKIT-LEARN
+        # TODO PSC: EL CANDIDATO TENDRÁ QUE DEFINIR UNA PANDAS-UDF PARA HACER LA PREDICCIÓN DEL MODELO DE SCIKIT-LEARN
+        # TODO PSC: LE DAMOS LA ESTRUCTURA DE SALIDA
         model = self.load_model()
         if isinstance(model, LGBMClassifier):
             categorical_features = self.categorical_features.copy()
@@ -111,8 +112,8 @@ class Predict:
         if self.model_framework == "scikit-learn":
             df = df.select(
                 "*",
-                F.col("probs.proba_1").alias("Probs_1"),
-                F.col("probs.proba_0").alias("Probs_0")
+                F.col("probs.proba_0").alias("Probs_0"),
+                F.col("probs.proba_1").alias("Probs_1")
             ).drop("probs")
         else:
             df = df.select("*")
