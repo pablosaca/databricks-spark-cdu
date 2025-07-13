@@ -2,6 +2,8 @@
 
 Este proyecto trata sobre un CdU de venta cruzada de productos usando pyspark.
 
+La estructura del proyecto es la mostrada a continuación:
+
 ```
 
 │
@@ -14,15 +16,14 @@ Este proyecto trata sobre un CdU de venta cruzada de productos usando pyspark.
 │    └── predict                                    # código fuente para la predicción
 │         └── predict.py
 │
-│   └──data                                         # código fuente para la carga de datos y obtención de muestras
+│   └──data                                         # código fuente para la carga de datos y generación de muestras
 │         └── load_data.py      
 │
 │   └──preprocessing                                # código fuente para la limpieza de las muestras
 │         └── preprocessing.py                           
 │
-│   └── utils                                       # código fuente para la carga de datos, visualización y otros 
-│         └── graphs.py                           
-│         └── load_data.py
+│   └── utils                                       # código fuente para EDA y otros 
+│         └── utils.py                           
 │         └── logger.py                           
 │
 │
