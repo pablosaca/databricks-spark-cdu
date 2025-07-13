@@ -69,7 +69,7 @@ class Predict:
         + 2 columnas adicionales que serán las probabilidades de presencia o ausencia del evento
         """
         # TODO PSC: EL CANDIDATO TENDRÁ QUE DEFINIR UNA PANDAS-UDF PARA HACER LA PREDICCIÓN DEL MODELO DE SCIKIT-LEARN
-        # TODO PSC: LE DAMOS LA ESTRUCTURA DE SALIDA
+        # TODO PSC: Propuesta: dar al candidato la estructura de la salida de la pandas-udf
         model = self.load_model()
         if isinstance(model, LGBMClassifier):
             categorical_features = self.categorical_features.copy()
@@ -107,8 +107,8 @@ class Predict:
         """
         Método para disponer formato estandarizado en la salida del dataframe de predicciones
         ya sea usando un modelo de scikit-learn o de spark.
-        # TODO: es necesario implementar el formateo de salida en un modelo de spark
         """
+        # TODO: ESTE MÉTODO ESTÁ INCOMPLETO. EL CANDIDADO DEBE FORMATEAR LA SALIDA DE UN MODELO DE SPARK
         if self.model_framework == "scikit-learn":
             df = df.select(
                 "*",

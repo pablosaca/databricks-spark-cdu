@@ -214,8 +214,8 @@ class ScikitLearnTrainer(ClassificationTrainer):
     def __model_fitted(self, X_train: pd.DataFrame, y_train: pd.Series) -> None:
         """
         Entrenamiento de un modelo LGBM a partir de la muestra de entrenamiento (feats and target column)
-        # TODO: se dispone de un entrenamiento básico, se permite cualquier mejora al respecto en función de los datos de partida
         """
+        # TODO: SE DISPONE DE UN ENTRENAMIENTO BÁSICO, EL CANDIDATO TIENE LIBERTADAD TOTAL PARA MEJORAR ESTE PROCESO EN FUNCIÓN DE LOS DATOS DE PARTIDA
         self.model = LGBMClassifier(
             n_estimators=self.lightgbm_params["n_estimators"],
             learning_rate=self.lightgbm_params["learning_rate"],
