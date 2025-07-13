@@ -70,16 +70,15 @@ class Predict:
         """
         # TODO: EL CANDIDATO TENDRÁ QUE DEFINIR UNA PANDAS-UDF PARA HACER LA PREDICCIÓN DEL MODELO DE SCIKIT-LEARN
         model = self.load_model()
-        categorical_features = self.categorical_features.copy()
         if isinstance(model, LGBMClassifier):
-
+            categorical_features = self.categorical_features.copy()
             proba_schema = StructType([
                 StructField("proba_0", DoubleType()),
                 StructField("proba_1", DoubleType())
             ])
 
             @pandas_udf(proba_schema)
-            def predict_proba_udf(*cols) -> pd.DataFrame:
+            def predict_proba_udf(*cols: pd.Series) -> pd.DataFrame:
 
                 features_df = pd.concat(cols, axis=1)
                 features_df.columns = model.feature_names_in_  # para estar en el mismo orden uso el atributo de lgbm

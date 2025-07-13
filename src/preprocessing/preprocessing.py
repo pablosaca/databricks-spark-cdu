@@ -89,14 +89,9 @@ def impute_nulls_for_numerical_cols_out_sample(
     # asumimos que es un diccionario anidado con valores float o enteros
     elif isinstance(impute_value_or_mapping, dict):
         logger.info(f"imputando {col_name} usando {stratific_col}")
-        mapping = impute_value_or_mapping.get(col_name, {})
-        if not mapping:
-            msg = f"Diccionario está vacío: {mapping}"
-            logger.error(msg)
-            raise ValueError(msg)
         # uso de un bucle para encadenar las condiciones (en cascada)
         expr = F.col(col_name)  # inicialización de la expresión con la condición inicial
-        for cond_val, impute_val in mapping.items():
+        for cond_val, impute_val in impute_value_or_mapping.items():
             expr = F.when(
                 (F.col(stratific_col) == cond_val) & F.col(col_name).isNull(), impute_val
             ).otherwise(expr)
