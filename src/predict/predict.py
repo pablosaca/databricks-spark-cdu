@@ -8,6 +8,7 @@ from pyspark.sql import DataFrame as DF
 from pyspark.sql.functions import pandas_udf
 from pyspark.sql.types import StructType, StructField, DoubleType
 
+from pyspark.ml import PipelineModel
 from pyspark.ml.classification import LogisticRegressionModel
 
 from src.utils.logger import get_logger
@@ -20,6 +21,7 @@ class Predict:
     def __init__(
             self,
             model_framework: str = "pyspark",
+            is_pipeline: bool = False,
             file_name: str = "prueba_practica_santalucia",
             model_name: str = "ml_model",
             path: str = "/databricks/driver",
@@ -27,6 +29,7 @@ class Predict:
     ):
 
         self.model_framework = model_framework
+        self.is_pipeline = is_pipeline
 
         api_fremework_available_list = ["scikit-learn", "pyspark"]
         if self.model_framework not in api_fremework_available_list:
@@ -50,7 +53,10 @@ class Predict:
             model_file = f"{model_path}/{self.model_name}.joblib"
             model = joblib.load(model_file)
         else:
-            model = LogisticRegressionModel.load(f"{model_path}/{self.model_name}")
+            if self.is_pipeline:
+                model = PipelineModel.load(f"{model_path}/{self.model_name}")
+            else:
+                model = LogisticRegressionModel.load(f"{model_path}/{self.model_name}")
         return model
 
     def predict(self, df: DF) -> DF:
@@ -67,7 +73,7 @@ class Predict:
                 StructField("proba_1", DoubleType())
             ])
 
-            @pandas_udf(proba_schema)
+            @pandas_udf(proba_schema, functionType="scalar")
             def predict_proba_udf(*cols) -> pd.DataFrame:
 
                 features_df = pd.concat(cols, axis=1)
@@ -79,10 +85,9 @@ class Predict:
                     if col in features_df.columns:
                         features_df[col] = features_df[col].astype("category")
 
-                preds_proba = model.predict_proba(features_df.to_list())
+                preds_proba = model.predict_proba(features_df)
                 result_df = pd.DataFrame(preds_proba, columns=["proba_0", "proba_1"])
                 return result_df
-
             predictions_df = df.withColumn("probs", predict_proba_udf(df["features"]))
         else:
             predictions_df = model.transform(df)
