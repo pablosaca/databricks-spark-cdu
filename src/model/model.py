@@ -9,6 +9,7 @@ import pandas as pd
 
 from pyspark.sql import functions as F
 from pyspark.sql import DataFrame as DF
+from pyspark.ml import functions as mlF
 from pyspark.ml.feature import StringIndexer, OneHotEncoder, VectorAssembler
 from pyspark.ml import Pipeline
 from pyspark.ml.classification import LogisticRegression
@@ -306,7 +307,6 @@ class PySparkTrainer(ClassificationTrainer):
             frac_sample: float = 0.7,
             categorical_features: Optional[List[str]] = None,
             seed: int = 123,
-            pred_threshold: Optional[float] = None,
             file_name: str = "prueba_practica_santalucia",
             model_name: str = "ml_model",
             path: str = "/databricks/driver"
@@ -319,7 +319,7 @@ class PySparkTrainer(ClassificationTrainer):
                 f"Incorrecto framework de modelización a utilizar. Solo puede usarse {api_framework_available}"
             )
 
-        aux_cat_feats = ["Gender", "Vehicle_Age", "Vehicle_Damage"]
+        aux_cat_feats = ["Gender", "Vehicle_Age", "Vehicle_Damage", "Quality_of_Life"]
         self.categorical_features = categorical_features if categorical_features is not None else aux_cat_feats
 
         self.model = None  # se actualiza cuando se entrena el modelo
@@ -337,7 +337,7 @@ class PySparkTrainer(ClassificationTrainer):
         self.__model_fitted(df=train_df)
 
         # predición del modelo para la muestra de train y val
-        # spark añade al dataframe de partida nuevas columnas (vectoriales como probability o prediction)
+        # spark añade al dataframe de partida nuevas columnas (incluyendo dense-vector como probability)
         predictions_train_df = self.model.transform(train_df)
         predictions_val_df = self.model.transform(train_df)
 
@@ -355,17 +355,24 @@ class PySparkTrainer(ClassificationTrainer):
         """
         Uso de la predicción utilizando el umbral adecuado por el usuario
         """
-        return df.withColumn(
-            "pred",
-            F.when(F.col("probability")[1] >= pred_threshold, 1).otherwise(0)
-        ).select(F.col("Response").alias("y_true"), "y_pred")  # al final nos quedamos solo con 2 columnas en el df
+        # la columna probability (dense-vector) es necesaria convertirla array-vector
+        df = (
+            df.withColumn(
+                "probability_array", mlF.vector_to_array(F.col("probability"))
+            )
+            .withColumn(
+                "y_pred",
+                F.when(F.col("probability_array")[1] >= pred_threshold, 1).otherwise(0)
+            ).select(F.col("Response").alias("y_true"), "y_pred")
+        )
+        return df
 
     def __model_fitted(self, df: DF) -> None:
         """
         Entrenamiento de un modelo de regresión logística
         """
         # identificación de las variables numéricas
-        numeric_cols = [col for col in df.columns not in self.categorical_features]
+        numeric_cols = [col for col in df.columns if col not in self.categorical_features]
 
         # codificación de las variables categóricas (spark necesita primero pasar las categorías a índices)
         indexers = [StringIndexer(inputCol=col, outputCol=col + "_idx") for col in self.categorical_features]
