@@ -99,6 +99,7 @@ class Predict:
             logger.info("Aplicada pandas-udf para obtener las predicciones")
         else:
             predictions_df = model.transform(df)
+            logger.info("Predicciones obtenidas por el modelo de spark")
         predictions_df = self.__output_predictions_format(predictions_df)
         return predictions_df
 

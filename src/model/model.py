@@ -301,7 +301,7 @@ class PySparkTrainer(ClassificationTrainer):
             categorical_features: Optional[List[str]] = None,
             seed: int = 123,
             file_name: str = "prueba_practica_santalucia",
-            model_name: str = "ml_model",
+            model_name: str = "spark_ml_model",
             path: str = "/databricks/driver"
     ):
         super().__init__(model_framework, target, frac_sample, seed, file_name, model_name, path)
