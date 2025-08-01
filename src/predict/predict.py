@@ -9,6 +9,7 @@ from pyspark.sql import functions as F
 from pyspark.sql.functions import pandas_udf
 from pyspark.sql.types import StructType, StructField, DoubleType
 
+from pyspark.ml import functions as mlF
 from pyspark.ml import PipelineModel
 from pyspark.ml.classification import LogisticRegressionModel
 
@@ -114,10 +115,11 @@ class Predict:
                 F.col("probs.proba_1").alias("Probs_1")
             ).drop("probs")
         else:
+            df = df.withColumn("probability_array", mlF.vector_to_array(F.col("probability")))
             df = df.select(
                 "*",
-                F.col("probability")[0].alias("Probs_0"),
-                F.col("probability")[1].alias("Probs_1")
-            )
+                F.col("probability_array")[0].alias("Probs_0"),
+                F.col("probability_array")[1].alias("Probs_1")
+            ).drop("probability_array", "probability", "prediction")
         logger.info(f"Formateada la salida del Spark dataframe de las predicciones {self.model_framework}")
         return df

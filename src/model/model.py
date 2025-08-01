@@ -209,10 +209,11 @@ class ScikitLearnTrainer(ClassificationTrainer):
         self.__model_fitted(X_train, y_train)
         y_pred_train = self.model.predict_proba(X_train)[:, 1]
         y_pred_val = self.model.predict_proba(X_val)[:, 1]
+        logger.info("Obtención de las predicciones del modelo (train y validación - Cálculo probabilidades")
 
         y_pred_train = self.__predictions_according_threshold(y_pred_train, pred_threshold)
         y_pred_val = self.__predictions_according_threshold(y_pred_val, pred_threshold)
-        logger.info("Realización de las predicciones del modelo")
+        logger.info(f"Realización de las predicciones del modelo - Toma decisión con {pred_threshold}")
 
         predictions_train_df = self.__model_predictions_format(y_train, y_pred_train)
         predictions_val_df = self.__model_predictions_format(y_val, y_pred_val)
@@ -332,10 +333,10 @@ class PySparkTrainer(ClassificationTrainer):
         # spark añade al dataframe de partida nuevas columnas (incluyendo dense-vector como probability)
         predictions_train_df = self.model.transform(train_df)
         predictions_val_df = self.model.transform(train_df)
-
+        logger.info("Obtención de las predicciones del modelo (train y validación - Cálculo probabilidades")
         predictions_train_df = self.__predictions_according_threshold(predictions_train_df, pred_threshold)
         predictions_val_df = self.__predictions_according_threshold(predictions_val_df, pred_threshold)
-        logger.info("Realización de las predicciones del modelo")
+        logger.info(f"Realización de las predicciones del modelo - Toma decisión con {pred_threshold}")
 
         metrics_train = self._get_metrics(predictions_train_df)
         metrics_val = self._get_metrics(predictions_val_df)
@@ -362,8 +363,11 @@ class PySparkTrainer(ClassificationTrainer):
         """
         Entrenamiento de un modelo de regresión logística
         """
-        # identificación de las variables numéricas
-        numeric_cols = [col for col in df.columns if col not in self.categorical_features]
+        # identificación de las variables numéricas (excluyendo la target)
+        exclude_cols = self.categorical_features.copy()
+        exclude_cols.append(self.target)
+        numeric_cols = [col for col in df.columns if col not in exclude_cols]
+        del exclude_cols
 
         # codificación de las variables categóricas (spark necesita primero pasar las categorías a índices)
         indexers = [StringIndexer(inputCol=col, outputCol=col + "_idx") for col in self.categorical_features]
