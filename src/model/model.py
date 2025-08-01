@@ -7,14 +7,18 @@ import joblib
 import numpy as np
 import pandas as pd
 
+from pyspark.sql import functions as F
 from pyspark.sql import DataFrame as DF
+from pyspark.ml.feature import StringIndexer, OneHotEncoder, VectorAssembler
+from pyspark.ml import Pipeline
+from pyspark.ml.classification import LogisticRegression
+from lightgbm import LGBMClassifier
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
     recall_score,
     f1_score
 )
-from lightgbm import LGBMClassifier
 
 from src.utils.logger import get_logger
 
@@ -29,6 +33,7 @@ class ClassificationTrainer(ABC):
             target: str = "Response",
             frac_sample: float = 0.7,
             seed: int = 123,
+            pred_threshold: Optional[float] = None,
             file_name: str = "prueba_practica_santalucia",
             model_name: str = "ml_model",
             path: str = "/databricks/driver"
@@ -44,6 +49,15 @@ class ClassificationTrainer(ABC):
         self.target = target
         self.frac_sample = frac_sample
         self.seed = seed
+
+        if pred_threshold is None:
+            pred_threshold = 0.5
+        else:
+            if not 0 <= pred_threshold <= 1:
+                msg = "Incorrecto valor para el threshold de toma de decisión del modelo. " \
+                      f"Debe estar entre 0 y 1 y toma el valor {pred_threshold}"
+                raise ValueError(msg)
+        self.pred_threshold = pred_threshold
 
         self.file_name = file_name
         self.model_name = model_name
@@ -93,10 +107,27 @@ class ClassificationTrainer(ABC):
             logger.error(msg)
             raise ValueError(msg)
 
-        # TODO PSC: En este caso, se utiliza un muestro aleatorio simple pero el candidato debería plantear posibles mejoras
-        train_df = df.sample(fraction=self.frac_sample, seed=self.seed)
+        stratified_sample = self._stratified_sample(df)
+        train_df = df.sampleBy(
+            col=F.col("Response"), fractions=stratified_sample, seed=self.seed
+        )
         val_df = df.join(train_df, on="id", how="left_anti")
         return train_df, val_df
+
+    @staticmethod
+    def _stratified_sample(df: DF) -> Dict[int, float]:
+        """
+        Diccionario para obtener los pesos estratificado a la hora de generar la muestra de entrenamiento del modelo
+        """
+        counts = df.groupBy("Response").count()  # conteos por cada clase de la variable objetivo
+        total = counts.agg(F.sum("count")).first()[0]  # total de registros
+
+        # obtención
+        fractions = {
+            row["Response"]: row["count"] / total
+            for row in counts.collect()
+        }
+        return fractions
 
     def _previous_check_train_model(self, train_df: DF, val_df: DF) -> None:
         """
@@ -127,9 +158,7 @@ class ClassificationTrainer(ABC):
 
 
 class ScikitLearnTrainer(ClassificationTrainer):
-    # TODO: SE DEJA AL CANDIDATO LA POSIBILIDAD DE UTILIZAR UN MODELO DE BOOSTING -> LigthGBM
-    # TODO: EL CANDIDATO PODRÁ PLANTEAR OTRO MODELO SI LO CONSIDERA
-    # TODO: EN CASO DE ACTUALIZAR EL TIPO DE MODELO DEBE TENER EN CUENTA SUS IMPLICACIONES EN LA CLASE Y EN EL RESTO DEL PROYECTO
+
     def __init__(
             self,
             model_framework: str = "scikit-learn",
@@ -138,11 +167,12 @@ class ScikitLearnTrainer(ClassificationTrainer):
             categorical_features: Optional[List[str]] = None,
             lightgbm_params: Optional[Dict[str, int]] = None,
             seed: int = 123,
+            pred_threshold: Optional[float] = None,
             file_name: str = "prueba_practica_santalucia",
             model_name: str = "ml_model",
             path: str = "/databricks/driver"
     ):
-        super().__init__(model_framework, target, frac_sample, seed, file_name, model_name, path)
+        super().__init__(model_framework, target, frac_sample, seed, pred_threshold, file_name, model_name, path)
 
         api_framework_available = "scikit-learn"
         if not self.model_framework == api_framework_available:
@@ -182,8 +212,8 @@ class ScikitLearnTrainer(ClassificationTrainer):
 
         logger.info("Entrenamiento de un modelo lightgbm usando scikit-learn")
         self.__model_fitted(X_train, y_train)
-        y_pred_train = self.model.predict(X_train)
-        y_pred_val = self.model.predict(X_val)
+        y_pred_train = self.model.predict_proba(X_train)[:, 1]
+        y_pred_val = self.model.predict_proba(X_val)[:, 1]
         logger.info("Realización de las predicciones del modelo")
 
         predictions_train_df = self.__model_predictions_format(y_train, y_pred_train)
@@ -192,6 +222,19 @@ class ScikitLearnTrainer(ClassificationTrainer):
         metrics_val = self._get_metrics(predictions_val_df)
         logger.info("Obtenidas las métricas del modelo para la muestra de entrenamiento y validación")
         return {"train_sample": metrics_train, "val_sample": metrics_val}
+
+    def __predictions_according_threshold(self, y_pred: np.ndarray) -> np.ndarray:
+        """
+        Uso de la predicción utilizando el umbral adecuado por el usuario
+        """
+
+        def apply_threshold(probabilidad: float, threshold: int) -> int:
+            """
+            Toma de decisión de la etiqueta a partir de un threshold dado
+            """
+            return 1 if probabilidad >= threshold else 0
+        y_pred = y_pred.apply(apply_threshold, threshold=self.pred_threshold)
+        return y_pred
 
     @staticmethod
     def __model_predictions_format(y_real: pd.Series, y_pred: np.ndarray) -> pd.DataFrame:
@@ -215,7 +258,6 @@ class ScikitLearnTrainer(ClassificationTrainer):
         """
         Entrenamiento de un modelo LGBM a partir de la muestra de entrenamiento (feats and target column)
         """
-        # TODO: SE DISPONE DE UN ENTRENAMIENTO BÁSICO, EL CANDIDATO TIENE LIBERTADAD TOTAL PARA MEJORAR ESTE PROCESO EN FUNCIÓN DE LOS DATOS DE PARTIDA
         self.model = LGBMClassifier(
             n_estimators=self.lightgbm_params["n_estimators"],
             learning_rate=self.lightgbm_params["learning_rate"],
@@ -247,7 +289,6 @@ class ScikitLearnTrainer(ClassificationTrainer):
         """
         Guardado del modelo (el directorio se obtiene de los atributos de la clase)
         """
-        # TODO PSC: borrar para que lo defina el candidato
         model_path = f"{self.path}/{self.file_name}"
         if not os.path.exists(model_path):
             os.makedirs(model_path)
@@ -258,9 +299,7 @@ class ScikitLearnTrainer(ClassificationTrainer):
 
 
 class PySparkTrainer(ClassificationTrainer):
-    # TODO: SE DEJA AL CANDIDATO ACTUALIZAR LOS MÉTODOS NECESARIOS PARA REALIZAR UN ENTRENAMIENTO DE UNA REGRESIÓN LOGÍSTICA EN SPARK
-    # TODO: EL CANDIDATO DEBE TENER EN CUENTA QUE NO PODRÁ SOBREESCRIBIR MÉTODOS PROVENIENTES DE LA CLASE PADRE
-    # TODO: EN CASO DE ACTUALIZAR EL TIPO DE MODELO DEBE TENER EN CUENTA SUS IMPLICACIONES EN LA CLASE Y EN EL RESTO DEL PROYECTO
+
     def __init__(
             self,
             model_framework: str = "spark-mllib",
@@ -268,11 +307,12 @@ class PySparkTrainer(ClassificationTrainer):
             frac_sample: float = 0.7,
             categorical_features: Optional[List[str]] = None,
             seed: int = 123,
+            pred_threshold: Optional[float] = None,
             file_name: str = "prueba_practica_santalucia",
             model_name: str = "ml_model",
             path: str = "/databricks/driver"
     ):
-        super().__init__(model_framework, target, frac_sample, seed, file_name, model_name, path)
+        super().__init__(model_framework, target, frac_sample, seed, pred_threshold, file_name, model_name, path)
 
         api_framework_available = "spark-mllib"
         if not self.model_framework == api_framework_available:
@@ -294,28 +334,61 @@ class PySparkTrainer(ClassificationTrainer):
         self._previous_check_train_model(train_df, val_df)
 
         logger.info("Entrenamiento de un modelo de regresión logística en spark")
-        # TODO: DEFINIR EL CÓDIGO PARA IMPLEMENTAR EL ENTRENAMIENTO DE UNA REGRESIÓN LOGÍSTICA EN PYSPARK
-        # TODO: ANTES DE UTILIZAR EL MÉTODO '_get_metrics' DEBE PASARSE EL DATAFRAME DE SPARK
-        #  CON LAS PREDICCIONES A PANDAS CON LA ESTRUCTURA DE TRABAJO PLANTEADA
+        self.__model_fitted(df=train_df)
 
-        predictions_train_df = None
-        predictions_val_df = None
+        # predición del modelo para la muestra de train y val
+        # spark añade al dataframe de partida nuevas columnas (vectoriales como probability o prediction)
+        predictions_train_df = self.model.transform(train_df)
+        predictions_val_df = self.model.transform(train_df)
+
+        predictions_train_df = self.__predictions_according_threshold(predictions_train_df)
+        predictions_val_df = self.__predictions_according_threshold(predictions_val_df)
 
         metrics_train = self._get_metrics(predictions_train_df)
         metrics_val = self._get_metrics(predictions_val_df)
         logger.info("Obtenidas las métricas del modelo para la muestra de entrenamiento y validación")
         return {"train_sample": metrics_train, "val_sample": metrics_val}
 
-    def __model_fitted(self, X_train: pd.DataFrame, y_train: pd.Series) -> None:
+    def __predictions_according_threshold(self, df: DF, ) -> DF:
         """
-        Entrenamiento de un modelo LGBM a partir de la muestra de entrenamiento (feats and target column)
+        Uso de la predicción utilizando el umbral adecuado por el usuario
         """
-        # TODO: EL CANDIDATO DEBE IMPLEMENTAR DEL ENTRENAMIENTO DE UN MODELO DE REGRESIÓN LOGÍSTICA
-        pass
+        return df.withColumn(
+            "pred",
+            F.when(F.col("probability")[1] >= self.pred_threshold, 1).otherwise(0)
+        ).select(F.col("Response").alias("y_true"), "y_pred")  # al final nos quedamos solo con 2 columnas en el df
+
+    def __model_fitted(self, df: DF) -> None:
+        """
+        Entrenamiento de un modelo de regresión logística
+        """
+        # identificación de las variables numéricas
+        numeric_cols = [col for col in df.columns not in self.categorical_features]
+
+        # codificación de las variables categóricas (spark necesita primero pasar las categorías a índices)
+        indexers = [StringIndexer(inputCol=col, outputCol=col + "_idx") for col in self.categorical_features]
+        encoders = [OneHotEncoder(inputCol=col + "_idx", outputCol=col + "_vec") for col in self.categorical_features]
+
+        # las features en spark son un columna vectorizada
+        assembler_inputs = numeric_cols + [col + "_vec" for col in self.categorical_features]
+        assembler = VectorAssembler(inputCols=assembler_inputs, outputCol="features")
+
+        # definición del modelo de regresión logística
+        lr = LogisticRegression(featuresCol="features", labelCol="Response")
+
+        # ajuste del modelo (incluyendo el pipeline seguido para transformar los datos
+        pipeline = Pipeline(stages=indexers + encoders + [assembler, lr])
+        model = pipeline.fit(df)
+        self.model = model
 
     def save_model(self):
         """
         Guardado del modelo (el directorio se obtiene de los atributos de la clase)
         """
-        # TODO: EL CANDIDATO DEBE IMPLEMENTAR LA MANERA EN QUE SE GUARDA UN MODELO DE SPARK
-        pass
+        model_path = f"{self.path}/{self.file_name}"
+        if not os.path.exists(model_path):
+            os.makedirs(model_path)
+            logger.info(f"Directorio {model_path} creado para guardar el artefacto del modelo")
+
+        model_file = f"{model_path}/{self.model_name}"
+        self.model.save(model_file)  # se guarda el pipeline total (transformada de datos + regresión logística)
