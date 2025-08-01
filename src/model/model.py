@@ -98,27 +98,19 @@ class ClassificationTrainer(ABC):
             logger.error(msg)
             raise ValueError(msg)
 
-        stratified_sample = self._stratified_sample(df)
-        train_df = df.sampleBy(
-            col=F.col("Response"), fractions=stratified_sample, seed=self.seed
-        )
+        train_df = self.__get_stratified_sample(df)
         val_df = df.join(train_df, on="id", how="left_anti")
+        logger.info(f"Muestra de entrenamiento: {train_df.count()}")
+        logger.info(f"Muestra de validacion: {val_df.count()}")
         return train_df, val_df
 
-    @staticmethod
-    def _stratified_sample(df: DF) -> Dict[int, float]:
+    def __get_stratified_sample(self, df: DF) -> DF:
         """
-        Diccionario para obtener los pesos estratificado a la hora de generar la muestra de entrenamiento del modelo
+        Dataframe de la muestra de entrenamiento del modelo. Es una extracción estratificada por target
         """
-        counts = df.groupBy("Response").count()  # conteos por cada clase de la variable objetivo
-        total = counts.agg(F.sum("count")).first()[0]  # total de registros
-
-        # obtención
-        fractions = {
-            row["Response"]: row["count"] / total
-            for row in counts.collect()
-        }
-        return fractions
+        one_sample_df = df.filter(F.col(self.target) == 1).sample(fraction=self.frac_sample, seed=self.seed)
+        zero_sample_df = df.filter(F.col(self.target) == 0).sample(fraction=self.frac_sample, seed=self.seed)
+        return zero_sample_df.unionByName(one_sample_df)
 
     def _previous_check_train_model(self, train_df: DF, val_df: DF) -> None:
         """
@@ -350,8 +342,7 @@ class PySparkTrainer(ClassificationTrainer):
         logger.info("Obtenidas las métricas del modelo para la muestra de entrenamiento y validación")
         return {"train_sample": metrics_train, "val_sample": metrics_val}
 
-    @staticmethod
-    def __predictions_according_threshold(df: DF, pred_threshold: float) -> DF:
+    def __predictions_according_threshold(self, df: DF, pred_threshold: float) -> DF:
         """
         Uso de la predicción utilizando el umbral adecuado por el usuario
         """
@@ -363,7 +354,7 @@ class PySparkTrainer(ClassificationTrainer):
             .withColumn(
                 "y_pred",
                 F.when(F.col("probability_array")[1] >= pred_threshold, 1).otherwise(0)
-            ).select(F.col("Response").alias("y_true"), "y_pred")
+            ).select(F.col(self.target).alias("y_true"), "y_pred")
         )
         return df
 
@@ -383,7 +374,7 @@ class PySparkTrainer(ClassificationTrainer):
         assembler = VectorAssembler(inputCols=assembler_inputs, outputCol="features")
 
         # definición del modelo de regresión logística
-        lr = LogisticRegression(featuresCol="features", labelCol="Response")
+        lr = LogisticRegression(featuresCol="features", labelCol=self.target)
 
         # ajuste del modelo (incluyendo el pipeline seguido para transformar los datos
         pipeline = Pipeline(stages=indexers + encoders + [assembler, lr])
