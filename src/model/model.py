@@ -33,7 +33,6 @@ class ClassificationTrainer(ABC):
             target: str = "Response",
             frac_sample: float = 0.7,
             seed: int = 123,
-            pred_threshold: Optional[float] = None,
             file_name: str = "prueba_practica_santalucia",
             model_name: str = "ml_model",
             path: str = "/databricks/driver"
@@ -49,15 +48,6 @@ class ClassificationTrainer(ABC):
         self.target = target
         self.frac_sample = frac_sample
         self.seed = seed
-
-        if pred_threshold is None:
-            pred_threshold = 0.5
-        else:
-            if not 0 <= pred_threshold <= 1:
-                msg = "Incorrecto valor para el threshold de toma de decisión del modelo. " \
-                      f"Debe estar entre 0 y 1 y toma el valor {pred_threshold}"
-                raise ValueError(msg)
-        self.pred_threshold = pred_threshold
 
         self.file_name = file_name
         self.model_name = model_name
@@ -143,6 +133,17 @@ class ClassificationTrainer(ABC):
             logger.error(msg)
             raise ValueError(msg)
 
+    @staticmethod
+    def _check_pred_threshold(pred_threshold: float):
+        """
+        Analiza si el valor del umbral de predicción es adecuado
+        """
+        if not 0 <= pred_threshold <= 1:
+            msg = "Incorrecto valor para el threshold de toma de decisión del modelo. " \
+                  f"Debe estar entre 0 y 1 y toma el valor {pred_threshold}"
+            logger.info(msg)
+            raise ValueError(msg)
+
     @abstractmethod
     def train_model(
             self, train_df: DF, val_df: DF
@@ -167,12 +168,11 @@ class ScikitLearnTrainer(ClassificationTrainer):
             categorical_features: Optional[List[str]] = None,
             lightgbm_params: Optional[Dict[str, int]] = None,
             seed: int = 123,
-            pred_threshold: Optional[float] = None,
             file_name: str = "prueba_practica_santalucia",
             model_name: str = "ml_model",
             path: str = "/databricks/driver"
     ):
-        super().__init__(model_framework, target, frac_sample, seed, pred_threshold, file_name, model_name, path)
+        super().__init__(model_framework, target, frac_sample, seed, file_name, model_name, path)
 
         api_framework_available = "scikit-learn"
         if not self.model_framework == api_framework_available:
@@ -188,12 +188,14 @@ class ScikitLearnTrainer(ClassificationTrainer):
         self.model = None  # se actualiza cuando se entrena el modelo
 
     def train_model(
-            self, train_df: DF, val_df: DF
+            self, train_df: DF, val_df: DF, pred_threshold: float = 0.5
     ) -> Dict[str, Dict[str, Union[float, np.ndarray]]]:
         """
         Entrenamiento del modelo de scikit-learn (aplicacióon a un modelo lightgbm)
         """
+        self._check_pred_threshold(pred_threshold)
         self._previous_check_train_model(train_df, val_df)
+
         features_model = [col for col in train_df.columns if col not in self.target]
         logger.info(f"Obtenidas las features del modelo: {features_model}")
 
@@ -214,6 +216,9 @@ class ScikitLearnTrainer(ClassificationTrainer):
         self.__model_fitted(X_train, y_train)
         y_pred_train = self.model.predict_proba(X_train)[:, 1]
         y_pred_val = self.model.predict_proba(X_val)[:, 1]
+
+        y_pred_train = self.__predictions_according_threshold(y_pred_train, pred_threshold)
+        y_pred_val = self.__predictions_according_threshold(y_pred_val, pred_threshold)
         logger.info("Realización de las predicciones del modelo")
 
         predictions_train_df = self.__model_predictions_format(y_train, y_pred_train)
@@ -223,18 +228,12 @@ class ScikitLearnTrainer(ClassificationTrainer):
         logger.info("Obtenidas las métricas del modelo para la muestra de entrenamiento y validación")
         return {"train_sample": metrics_train, "val_sample": metrics_val}
 
-    def __predictions_according_threshold(self, y_pred: np.ndarray) -> np.ndarray:
+    @staticmethod
+    def __predictions_according_threshold(y_pred: np.ndarray, pred_threshold: float) -> np.ndarray:
         """
         Uso de la predicción utilizando el umbral adecuado por el usuario
         """
-
-        def apply_threshold(probabilidad: float, threshold: int) -> int:
-            """
-            Toma de decisión de la etiqueta a partir de un threshold dado
-            """
-            return 1 if probabilidad >= threshold else 0
-        y_pred = y_pred.apply(apply_threshold, threshold=self.pred_threshold)
-        return y_pred
+        return (y_pred >= pred_threshold).astype(int)
 
     @staticmethod
     def __model_predictions_format(y_real: pd.Series, y_pred: np.ndarray) -> pd.DataFrame:
@@ -312,7 +311,7 @@ class PySparkTrainer(ClassificationTrainer):
             model_name: str = "ml_model",
             path: str = "/databricks/driver"
     ):
-        super().__init__(model_framework, target, frac_sample, seed, pred_threshold, file_name, model_name, path)
+        super().__init__(model_framework, target, frac_sample, seed, file_name, model_name, path)
 
         api_framework_available = "spark-mllib"
         if not self.model_framework == api_framework_available:
@@ -326,11 +325,12 @@ class PySparkTrainer(ClassificationTrainer):
         self.model = None  # se actualiza cuando se entrena el modelo
 
     def train_model(
-            self, train_df: DF, val_df: DF
+            self, train_df: DF, val_df: DF, pred_threshold: float = 0.5
     ) -> Dict[str, Dict[str, Union[float, np.ndarray]]]:
         """
         Entrenamiento del modelo de spark usando el framework de mllib
         """
+        self._check_pred_threshold(pred_threshold)
         self._previous_check_train_model(train_df, val_df)
 
         logger.info("Entrenamiento de un modelo de regresión logística en spark")
@@ -341,21 +341,23 @@ class PySparkTrainer(ClassificationTrainer):
         predictions_train_df = self.model.transform(train_df)
         predictions_val_df = self.model.transform(train_df)
 
-        predictions_train_df = self.__predictions_according_threshold(predictions_train_df)
-        predictions_val_df = self.__predictions_according_threshold(predictions_val_df)
+        predictions_train_df = self.__predictions_according_threshold(predictions_train_df, pred_threshold)
+        predictions_val_df = self.__predictions_according_threshold(predictions_val_df, pred_threshold)
+        logger.info("Realización de las predicciones del modelo")
 
         metrics_train = self._get_metrics(predictions_train_df)
         metrics_val = self._get_metrics(predictions_val_df)
         logger.info("Obtenidas las métricas del modelo para la muestra de entrenamiento y validación")
         return {"train_sample": metrics_train, "val_sample": metrics_val}
 
-    def __predictions_according_threshold(self, df: DF, ) -> DF:
+    @staticmethod
+    def __predictions_according_threshold(df: DF, pred_threshold: float) -> DF:
         """
         Uso de la predicción utilizando el umbral adecuado por el usuario
         """
         return df.withColumn(
             "pred",
-            F.when(F.col("probability")[1] >= self.pred_threshold, 1).otherwise(0)
+            F.when(F.col("probability")[1] >= pred_threshold, 1).otherwise(0)
         ).select(F.col("Response").alias("y_true"), "y_pred")  # al final nos quedamos solo con 2 columnas en el df
 
     def __model_fitted(self, df: DF) -> None:
