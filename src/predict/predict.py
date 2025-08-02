@@ -11,7 +11,6 @@ from pyspark.sql.types import StructType, StructField, DoubleType
 
 from pyspark.ml import functions as mlF
 from pyspark.ml import PipelineModel
-from pyspark.ml.classification import LogisticRegressionModel
 
 from src.utils.logger import get_logger
 
@@ -23,15 +22,13 @@ class Predict:
     def __init__(
             self,
             model_framework: str = "spark-mllib",
-            is_pipeline: bool = False,
-            file_name: str = "prueba_practica_santalucia",
+            file_name: str = "proyecto_uned",
             model_name: str = "ml_model",
             path: str = "/databricks/driver",
             categorical_features: Optional[List[str]] = None
     ):
 
         self.model_framework = model_framework
-        self.is_pipeline = is_pipeline
 
         api_fremework_available_list = ["scikit-learn", "spark-mllib"]
         if self.model_framework not in api_fremework_available_list:
@@ -55,10 +52,7 @@ class Predict:
             model_file = f"{model_path}/{self.model_name}.joblib"
             model = joblib.load(model_file)
         else:
-            if self.is_pipeline:
-                model = PipelineModel.load(f"{model_path}/{self.model_name}")
-            else:
-                model = LogisticRegressionModel.load(f"{model_path}/{self.model_name}")
+            model = PipelineModel.load(f"{model_path}/{self.model_name}")
         return model
 
     def predict(self, df: DF) -> DF:
