@@ -5,7 +5,7 @@ def get_logger():
     """
     Configuración para logging
     """
-    logger = logging.getLogger("SANTALUCÍA - PRUEBA TÉCNICA")
+    logger = logging.getLogger("UNED - PROYECTO EN DATABRICKS")
     logger.setLevel(logging.DEBUG)
 
     if not logger.handlers:

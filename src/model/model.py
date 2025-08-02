@@ -34,7 +34,7 @@ class ClassificationTrainer(ABC):
             target: str = "Response",
             frac_sample: float = 0.7,
             seed: int = 123,
-            file_name: str = "prueba_practica_santalucia",
+            file_name: str = "proyecto_uned",
             model_name: str = "ml_model",
             path: str = "/databricks/driver"
     ):
@@ -161,7 +161,7 @@ class ScikitLearnTrainer(ClassificationTrainer):
             categorical_features: Optional[List[str]] = None,
             lightgbm_params: Optional[Dict[str, int]] = None,
             seed: int = 123,
-            file_name: str = "prueba_practica_santalucia",
+            file_name: str = "proyecto_uned",
             model_name: str = "ml_model",
             path: str = "/databricks/driver"
     ):
@@ -267,7 +267,7 @@ class ScikitLearnTrainer(ClassificationTrainer):
             f'y tasa de aprendizaje {self.lightgbm_params["learning_rate"]}'
         )
 
-    def __select_categorical_features(self, df: Union[DF, pd.DataFrame]) -> Union[DF, pd.DataFrame]:
+    def __select_categorical_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Se tienen en cuenta las variables categóricas.
         Debes implementar el método si usas la modelización en spark
@@ -300,7 +300,7 @@ class PySparkTrainer(ClassificationTrainer):
             frac_sample: float = 0.7,
             categorical_features: Optional[List[str]] = None,
             seed: int = 123,
-            file_name: str = "prueba_practica_santalucia",
+            file_name: str = "proyecto_uned",
             model_name: str = "spark_ml_model",
             path: str = "/databricks/driver"
     ):

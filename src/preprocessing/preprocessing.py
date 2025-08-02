@@ -1,4 +1,4 @@
-from typing import Optional, Union, Tuple, List, Dict
+from typing import Optional, Union, Tuple, Dict
 
 from pyspark.sql import DataFrame as DF
 from pyspark.sql import functions as F
