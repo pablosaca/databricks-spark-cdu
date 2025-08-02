@@ -27,7 +27,7 @@ logger = get_logger()
 
 
 class ClassificationTrainer(ABC):
-    # TODO: EL CANDIDATO PODRÁ REFACTORIZAR LO QUE CONSIDERE DE LA CLASE Y SUS MÉTODOS
+
     def __init__(
             self,
             model_framework: str = "spark-mllib",

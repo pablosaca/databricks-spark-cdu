@@ -108,7 +108,6 @@ class Predict:
         Método para disponer formato estandarizado en la salida del dataframe de predicciones
         ya sea usando un modelo de scikit-learn o de spark.
         """
-        # TODO: ESTE MÉTODO ESTÁ INCOMPLETO. EL CANDIDADO DEBE FORMATEAR LA SALIDA DE UN MODELO DE SPARK
         if self.model_framework == "scikit-learn":
             df = df.select(
                 "*",
