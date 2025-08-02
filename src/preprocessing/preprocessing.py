@@ -15,7 +15,6 @@ def impute_nulls_for_numeric_cols(
     Método para imputar valores nulos en el dataset.
     Imputación simple: mediana, media, de forma estratificada
     Devuelve la tabla y un diccionario (clave: nombre de la variable y valor: valor por el que se imputa)
-    # TODO: EL CANDIDATO DEBERÁ REFACTORIZAR LA ESTRUCTURA DEL CÓDIGO SI LO CREE CONVENIENTE
     """
     if stratific_col is None:
         if method_name == "mean":
@@ -98,25 +97,3 @@ def impute_nulls_for_numerical_cols_out_sample(
         df = df.withColumn(col_name, expr)
     logger.info(f"{col_name} ha sido imputada según {impute_value_or_mapping}")
     return df
-
-
-def impute_nulls_for_categorical_cols(df: DF, colname: str, stratific_col: Optional[str] = None) -> DF:
-    """
-    Imputación de datos faltantes para una columna específica.
-
-    Si fuese necesario utilizar este método, usa métodos internos definir la función
-    """
-    # TODO: SI FUESE NECESARIO IMPLEMENTAR CÓDIGO FUENTE PARA IMPUTAR VARIABLES CATEGÓRICAS
-    pass
-
-
-def create_new_col(
-        df: DF,
-        colname: Union[str, List[str]],
-        group_levels: Optional[List[Union[str, float]]] = None
-) -> DF:
-    """
-    Utiliza este método si necesitas crear nuevas variables
-    """
-    # TODO: SI FUESE NECESARIO IMPLEMENTAR CÓDIGO FUENTE PARA CREAR NUEVA VARIABLE
-    pass

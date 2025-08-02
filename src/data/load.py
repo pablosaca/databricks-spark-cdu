@@ -36,8 +36,6 @@ class LoadData:
         - EDA y modelización
         - Predicción del modelo ante una simulación productiva del modelo
         """
-        # TODO PSC: este método será borrado y tendrá que ser definido por el candidato
-        # TODO PSC: el método no hace más que
         profile_table_name_df = self.__load_data(self.profile_table_name)
         performance_table_name_df = self.__load_data(self.performance_table_name)
         socioeconomic_table_name_df = self.__load_data(self.socioeconomic_table_name)
@@ -67,7 +65,6 @@ class LoadData:
         """
         Cruce de tablas para construir el macrotablón
         """
-        # TODO PSC: este método será borrado y tendrá que ser definido por el candidato
         logger.info(f"Se cruzan dos tablas ({how}-join) por {cols_merge}")
         df1 = df1.join(df2, on=cols_merge, how=how)
         return df1
