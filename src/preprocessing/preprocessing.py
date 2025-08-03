@@ -1,3 +1,6 @@
+import os
+import json
+
 from typing import Optional, Union, Tuple, Dict
 
 from pyspark.sql import DataFrame as DF
@@ -69,7 +72,7 @@ def impute_nulls_for_numerical_cols_out_sample(
         col_name: str,
         impute_value_or_mapping: [Union[float, int, Dict[str, Union[float, int]]]],
         stratific_col: Optional[str] = None
-):
+) -> DF:
     """
     Imputación de valores para las predicciones futuras
 
@@ -97,3 +100,36 @@ def impute_nulls_for_numerical_cols_out_sample(
         df = df.withColumn(col_name, expr)
     logger.info(f"{col_name} ha sido imputada según {impute_value_or_mapping}")
     return df
+
+
+def save_imputation_process(
+        preprocessing_dict: Dict[str, Union[float, Dict[str, float]]],
+        file_name: str = "proyecto_uned",
+        preprocessing_name: str = "preprocessing",
+        path: str = "/databricks/driver") -> None:
+    """
+    Guardado del diccionario para obtener el proceso de imputación de valores nulos
+    """
+    preprocessing_dict = {"preprocessing": preprocessing_dict}
+    preprocessing_path = f"{path}/{file_name}"
+
+    if not os.path.exists(preprocessing_path):
+        os.makedirs(preprocessing_path)
+        print(f"Directorio {preprocessing_path} creado para guardar el artefacto del preprocesado")
+
+    with open(f"{preprocessing_path}/{preprocessing_name}.json", "w", encoding="utf-8") as file:
+        json.dump(preprocessing_dict, file, ensure_ascii=False, indent=4)
+
+
+def load_imputation_process(
+        path: str = "/databricks/driver",
+        file_name: str = "proyecto_uned",
+        preprocessing_name: str = "preprocessing"
+) -> Dict[str, Union[float, Dict[str, float]]]:
+    """
+    Carga del diccionario para obtener el proceso de imputación de valores nulos
+    """
+    preprocessing_path = f"{path}/{file_name}"
+    with open(f"{preprocessing_path}/{preprocessing_name}.json", "r", encoding="utf-8") as file:
+        preprocessing = json.load(file)["preprocessing"]
+    return preprocessing
