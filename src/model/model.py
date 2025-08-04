@@ -34,7 +34,7 @@ class ClassificationTrainer(ABC):
             target: str = "Response",
             frac_sample: float = 0.7,
             seed: int = 123,
-            file_name: str = "proyecto_uned",
+            folder_name: str = "proyecto_uned",
             model_name: str = "ml_model",
             path: str = "/databricks/driver"
     ):
@@ -50,7 +50,7 @@ class ClassificationTrainer(ABC):
         self.frac_sample = frac_sample
         self.seed = seed
 
-        self.file_name = file_name
+        self.folder_name = folder_name
         self.model_name = model_name
         self.path = path
 
@@ -161,11 +161,11 @@ class ScikitLearnTrainer(ClassificationTrainer):
             categorical_features: Optional[List[str]] = None,
             lightgbm_params: Optional[Dict[str, int]] = None,
             seed: int = 123,
-            file_name: str = "proyecto_uned",
+            folder_name: str = "proyecto_uned",
             model_name: str = "ml_model",
             path: str = "/databricks/driver"
     ):
-        super().__init__(model_framework, target, frac_sample, seed, file_name, model_name, path)
+        super().__init__(model_framework, target, frac_sample, seed, folder_name, model_name, path)
 
         api_framework_available = "scikit-learn"
         if not self.model_framework == api_framework_available:
@@ -282,7 +282,7 @@ class ScikitLearnTrainer(ClassificationTrainer):
         """
         Guardado del modelo (el directorio se obtiene de los atributos de la clase)
         """
-        model_path = f"{self.path}/{self.file_name}"
+        model_path = f"{self.path}/{self.folder_name}"
         if not os.path.exists(model_path):
             os.makedirs(model_path)
             logger.info(f"Directorio {model_path} creado para guardar el artefacto del modelo")
@@ -300,11 +300,11 @@ class PySparkTrainer(ClassificationTrainer):
             frac_sample: float = 0.7,
             categorical_features: Optional[List[str]] = None,
             seed: int = 123,
-            file_name: str = "proyecto_uned",
+            folder_name: str = "proyecto_uned",
             model_name: str = "spark_ml_model",
             path: str = "/databricks/driver"
     ):
-        super().__init__(model_framework, target, frac_sample, seed, file_name, model_name, path)
+        super().__init__(model_framework, target, frac_sample, seed, folder_name, model_name, path)
 
         api_framework_available = "spark-mllib"
         if not self.model_framework == api_framework_available:
@@ -389,7 +389,7 @@ class PySparkTrainer(ClassificationTrainer):
         """
         Guardado del modelo (el directorio se obtiene de los atributos de la clase)
         """
-        model_path = f"{self.path}/{self.file_name}"
+        model_path = f"{self.path}/{self.folder_name}"
         if not os.path.exists(model_path):
             os.makedirs(model_path)
             logger.info(f"Directorio {model_path} creado para guardar el artefacto del modelo")

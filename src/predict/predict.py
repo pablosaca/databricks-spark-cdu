@@ -22,7 +22,7 @@ class Predict:
     def __init__(
             self,
             model_framework: str = "spark-mllib",
-            file_name: str = "proyecto_uned",
+            folder_name: str = "proyecto_uned",
             model_name: str = "ml_model",
             path: str = "/databricks/driver",
             categorical_features: Optional[List[str]] = None
@@ -36,7 +36,7 @@ class Predict:
             logger.error(msg)
             raise ValueError(msg)
 
-        self.file_name = file_name
+        self.folder_name = folder_name
         self.model_name = model_name
         self.path = path
 
@@ -47,7 +47,7 @@ class Predict:
         """
         Carga del modelo diferenciando si es de scikit-learn o pyspark
         """
-        model_path = f"{self.path}/{self.file_name}"
+        model_path = f"{self.path}/{self.folder_name}"
         if self.model_framework == "scikit-learn":
             model_file = f"{model_path}/{self.model_name}.joblib"
             model = joblib.load(model_file)
