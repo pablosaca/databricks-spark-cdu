@@ -139,8 +139,8 @@ class ClassificationTrainer(ABC):
 
     @abstractmethod
     def train_model(
-            self, train_df: DF, val_df: DF
-    ) -> Tuple[Union[DF, pd.DataFrame], Union[DF, pd.DataFrame]]:
+            self, train_df: DF, val_df: DF, pred_threshold: float = 0.5
+    ) -> Dict[str, Dict[str, Union[float, np.ndarray]]]:
         """
         Entrenamiento del modelo
         """
